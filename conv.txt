@@ -1260,4 +1260,6 @@ Alternatives and When to Use Them
 5-level: A good stepping stone if you want lighter files for initial development/debugging, but less impressive for the final project.
 
 Start by downloading a 10-level sample (e.g., AMZN or similar from the LOBSTER page). Implement configurable depth in your OrderBook (e.g., query up to N levels), so you can test with shallower subsets if needed. This keeps it flexible and high-quality.
-If file size/access is an issue with a specific sample, fall back to 5-level temporarily. Let me know which stock/date you pick, and we can refine parsing/validation!
+If file size/access is an issue with a specific sample, fall back to 5-level temporarily. Let me know which stock/date you pick, and we can refine parsing/validation!1.3s
+
+i have selected 5-level: The top 5 best bid prices/sizes and top 5 best ask prices/sizes. for the project
