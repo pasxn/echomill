@@ -1,65 +1,56 @@
 # EchoMill
 
-A high-performance trading engine project.
+EchoMill is a high-performance, from-scratch matching engine designed for multi-instrument trading. It implements core financial exchange principles—price-time priority, FIFO matching, and fixed-point precision—within a clean, modular C++ architecture.
 
-## Prerequisites
+## Overview
 
-- **C++20 Compiler**: `g++-13` or `clang++-17` (or newer).
-- **CMake**: Version 3.10+.
-- **Google Test**: Required for unit tests.
+Unlike generic order books, EchoMill is built for the network. It features a standalone C++ engine that exposes a RESTful API, accompanied by a rich Python client and a comprehensive scenario-driven testing suite.
 
-### Installing Google Test (Ubuntu/Debian)
+### Core Features
+- **Price-Time Priority**: Strictly deterministic FIFO matching per price level.
+- **Multi-Instrument Support**: Isolated order books for various symbols (e.g., AAPL, GOOG).
+- **Fixed-Point Precision**: Prices are handled as 64-bit integers to eliminate floating-point non-determinism.
+- **RESTful API**: Native HTTP/JSON interface for orders, depth, and status.
+- **Scenario Testing**: 15+ advanced E2E scenarios covering market sweeps, isolation, and robustness.
+
+## System Components
+
+- `echomill/`: C++ matching engine and HTTP server.
+- `client/`: Interactive Python CLI for trading and book inspection.
+- `e2etest/`: Python automation for declarative JSON scenario tests.
+- `docs/`: Technical specifications and architectural deep-dives.
+
+## Quick Start
+
+### 1. Build the Engine
 ```bash
-sudo apt-get update
-sudo apt-get install libgtest-dev
+# Build core engine and tests
+cmake -B echomill/build -S echomill && cmake --build echomill/build -j
 ```
 
-## Project Structure
+### 2. Run the Server
+The server requires a port and a configuration path.
+```bash
+./echomill/build/src/echomill_server 8080 config/instruments.json
+```
 
-- `echomill/`: Core execution engine.
-- `client/`: Trading client application.
-- `e2etest/`: End-to-end testing suite.
-- `config/`: Configuration files (instruments, etc.).
-- `data/`: Sample data files.
+### 3. Start the Interactive Client
+```bash
+# Enter the interactive REPL
+python3 client/client.py --port 8080
+```
+*In the client shell, type `help` to see commands.*
 
-## Guidelines
-
-See `docs/codingguidelines.md` for coding standards.
-
-## Building
-### End-to-End Testing
-EchoMill uses a Python-based scenario testing framework.
-
-**Requirements:**
-- Python 3
-- Built `echomill_server` binary (see build instructions above)
-
-**Run tests:**
+### 4. Run Automated E2E Tests
 ```bash
 python3 e2etest/runner.py
 ```
 
-This will spawn the server, run JSON-defined scenarios from `e2etest/scenarios/`, and validate the results.
+## Dependencies
+- **Engine**: C++20 compiler (`g++-13`+), CMake, Google Test (for unit tests).
+- **Client/Test**: Python 3.9+, `requests` library.
 
-## Configuration
-### Build EchoMill (Engine & Tests)
-```bash
-cmake -B echomill/build -S echomill && cmake --build echomill/build -j
-```
-
-### Running Tests
-
-Individual tests can be run using Google Test filters.
-
-```bash
-# Run all tests
-./echomill/build/test/echomill_test
-
-# Run matching logic tests only
-./echomill/build/test/echomill_test --gtest_filter="*MatchingTest*"
-```
-
-To run a single test case (e.g., `AddOrder` in `ServerTest`):
-```bash
-./echomill/build/test/echomill_test --gtest_filter="ServerTest.AddOrder"
-```
+## Documentation
+For a deep dive into the engineering behind EchoMill, refer to:
+- [System Architecture](docs/docs.md)
+- [Core Design & Types](docs/core_architecture.md)
