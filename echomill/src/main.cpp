@@ -23,15 +23,13 @@ void signalHandler(int signum)
 int main(int argc, char* argv[])
 {
     try {
-        // Configuration
-        std::string configPath = "config/instruments.json";
-        uint16_t port = 8080;
+        if (argc < 3) {
+            std::cerr << "Usage: " << argv[0] << " <port> <config_path>" << std::endl;
+            return 1;
+        }
 
-        // Parse args (minimal)
-        if (argc > 1)
-            port = static_cast<uint16_t>(std::stoi(argv[1]));
-        if (argc > 2)
-            configPath = argv[2];
+        uint16_t port = static_cast<uint16_t>(std::stoi(argv[1]));
+        std::string configPath = argv[2];
 
         std::cout << "EchoMill Matching Engine" << std::endl;
         std::cout << "Loading config from " << configPath << "..." << std::endl;
@@ -44,8 +42,7 @@ int main(int argc, char* argv[])
             std::cout << " - " << sym << std::endl;
         }
 
-        OrderBook orderBook;
-        Server server(orderBook, instruments);
+        Server server(instruments);
         g_server = &server;
 
         // Setup signal handling

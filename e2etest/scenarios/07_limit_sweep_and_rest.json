@@ -1,0 +1,57 @@
+{
+    "meta": {
+        "name": "Limit Sweep and Rest",
+        "description": "Limit order sweeps available liquidity and then rests the remainder."
+    },
+    "steps": [
+        {
+            "name": "Add Passive Buy Level 1",
+            "action": "POST /orders",
+            "body": {
+                "id": 701,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 100,
+                "qty": 10
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Aggressive Sell Cross and Rest",
+            "action": "POST /orders",
+            "body": {
+                "id": 702,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 90,
+                "qty": 25
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": [
+                    {
+                        "price": 100,
+                        "qty": 10,
+                        "makerId": 701,
+                        "takerId": 702
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify Remaining Rests at 90",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "asks": [
+                    {
+                        "price": 90,
+                        "qty": 15
+                    }
+                ],
+                "bids": []
+            }
+        }
+    ]
+}

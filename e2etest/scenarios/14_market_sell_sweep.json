@@ -1,0 +1,68 @@
+{
+    "meta": {
+        "name": "Market Sell Sweep",
+        "description": "Market sell order sweeps multiple bid levels."
+    },
+    "steps": [
+        {
+            "action": "POST /orders",
+            "body": {
+                "id": 1401,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 90,
+                "qty": 10
+            }
+        },
+        {
+            "action": "POST /orders",
+            "body": {
+                "id": 1402,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 80,
+                "qty": 20
+            }
+        },
+        {
+            "name": "Market Sell Sweep",
+            "action": "POST /orders",
+            "body": {
+                "id": 1403,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 2,
+                "qty": 25
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": [
+                    {
+                        "price": 90,
+                        "qty": 10,
+                        "makerId": 1401
+                    },
+                    {
+                        "price": 80,
+                        "qty": 15,
+                        "makerId": 1402
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify Remaining Bid",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "bids": [
+                    {
+                        "price": 80,
+                        "qty": 5
+                    }
+                ]
+            }
+        }
+    ]
+}

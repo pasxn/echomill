@@ -1,0 +1,37 @@
+{
+    "meta": {
+        "name": "Invalid Orders",
+        "description": "Negative testing for various invalid inputs."
+    },
+    "steps": [
+        {
+            "name": "Unknown Symbol",
+            "action": "POST /orders",
+            "body": {
+                "id": 801,
+                "symbol": "NOTEXIST",
+                "side": 1,
+                "type": 1,
+                "price": 100,
+                "qty": 10
+            },
+            "expect_status": 400,
+            "expect_body": {
+                "error": "Unknown symbol"
+            }
+        },
+        {
+            "name": "Missing Symbol Depth",
+            "action": "GET /depth?symbol=NONE",
+            "expect_status": 400,
+            "expect_body": {
+                "error": "Invalid or missing symbol"
+            }
+        },
+        {
+            "name": "Empty Path",
+            "action": "GET /unknown",
+            "expect_status": 404
+        }
+    ]
+}

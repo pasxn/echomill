@@ -5,11 +5,13 @@
 #include <cstdint>
 #include <string>
 
+#include <unordered_map>
+
 namespace echomill {
 
 class Server {
 public:
-    Server(OrderBook& book, const InstrumentManager& instruments);
+    Server(const InstrumentManager& instruments);
 
     // Start listening on port (blocking)
     void run(uint16_t port);
@@ -33,8 +35,8 @@ private:
     std::string createResponse(int statusCode, const std::string& body);
     std::string getQueryParam(const std::string& query, const std::string& key);
 
-    OrderBook& m_book;
     const InstrumentManager& m_instruments;
+    std::unordered_map<std::string, OrderBook> m_books;
     volatile bool m_running;
     int m_serverSocket;
 };

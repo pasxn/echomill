@@ -1,0 +1,54 @@
+{
+    "meta": {
+        "name": "Cancellation",
+        "description": "Verify order addition and subsequent cancellation."
+    },
+    "steps": [
+        {
+            "name": "Add Order",
+            "action": "POST /orders",
+            "body": {
+                "id": 301,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 500,
+                "qty": 100
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "status": "accepted"
+            }
+        },
+        {
+            "name": "Get Depth Before Cancel",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "bids": [
+                    {
+                        "price": 500,
+                        "qty": 100
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Cancel Order",
+            "action": "DELETE /orders",
+            "body": {
+                "id": 301
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "status": "cancelled"
+            }
+        },
+        {
+            "name": "Verify Empty Book",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "bids": []
+            }
+        }
+    ]
+}

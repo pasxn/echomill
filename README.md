@@ -27,8 +27,21 @@ sudo apt-get install libgtest-dev
 See `docs/codingguidelines.md` for coding standards.
 
 ## Building
-### E2E Testing
-EchoMill uses scenario-based testing to verify complex flows. See `docs/docs.md` for more details on the scenario framework.
+### End-to-End Testing
+EchoMill uses a Python-based scenario testing framework.
+
+**Requirements:**
+- Python 3
+- Built `echomill_server` binary (see build instructions above)
+
+**Run tests:**
+```bash
+python3 e2etest/runner.py
+```
+
+This will spawn the server, run JSON-defined scenarios from `e2etest/scenarios/`, and validate the results.
+
+## Configuration
 ### Build EchoMill (Engine & Tests)
 ```bash
 cmake -B echomill/build -S echomill && cmake --build echomill/build -j

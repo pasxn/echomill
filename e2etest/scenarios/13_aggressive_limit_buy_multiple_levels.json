@@ -1,0 +1,67 @@
+{
+    "meta": {
+        "name": "Aggressive Limit Buy Multiple Levels",
+        "description": "Limit buy sweeps multiple levels and then rests."
+    },
+    "steps": [
+        {
+            "action": "POST /orders",
+            "body": {
+                "id": 1301,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 100,
+                "qty": 10
+            }
+        },
+        {
+            "action": "POST /orders",
+            "body": {
+                "id": 1302,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 101,
+                "qty": 10
+            }
+        },
+        {
+            "name": "Aggressive Sweep and Rest",
+            "action": "POST /orders",
+            "body": {
+                "id": 1303,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 102,
+                "qty": 25
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": [
+                    {
+                        "price": 100,
+                        "qty": 10
+                    },
+                    {
+                        "price": 101,
+                        "qty": 10
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify Remaining Rests",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "bids": [
+                    {
+                        "price": 102,
+                        "qty": 5
+                    }
+                ]
+            }
+        }
+    ]
+}

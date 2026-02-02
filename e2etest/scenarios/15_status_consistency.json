@@ -1,0 +1,51 @@
+{
+    "meta": {
+        "name": "Status Consistency",
+        "description": "Verify global status count matches orders across multiple instruments."
+    },
+    "steps": [
+        {
+            "action": "POST /orders",
+            "body": {
+                "id": 1501,
+                "symbol": "AAPL",
+                "side": 1,
+                "price": 100,
+                "qty": 10,
+                "type": 1
+            }
+        },
+        {
+            "action": "POST /orders",
+            "body": {
+                "id": 1502,
+                "symbol": "GOOG",
+                "side": 1,
+                "price": 200,
+                "qty": 10,
+                "type": 1
+            }
+        },
+        {
+            "name": "Check Status",
+            "action": "GET /status",
+            "expect_body": {
+                "status": "ok",
+                "orders": 2
+            }
+        },
+        {
+            "action": "DELETE /orders",
+            "body": {
+                "id": 1501
+            }
+        },
+        {
+            "name": "Check Status After Cancel",
+            "action": "GET /status",
+            "expect_body": {
+                "orders": 1
+            }
+        }
+    ]
+}

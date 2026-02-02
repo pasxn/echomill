@@ -1,0 +1,64 @@
+{
+    "meta": {
+        "name": "Multiple Levels Depth",
+        "description": "Verify depth query returns multiple levels correctly."
+    },
+    "steps": [
+        {
+            "name": "Bid 1",
+            "action": "POST /orders",
+            "body": {
+                "id": 1101,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 100,
+                "qty": 1
+            }
+        },
+        {
+            "name": "Bid 2",
+            "action": "POST /orders",
+            "body": {
+                "id": 1102,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 99,
+                "qty": 1
+            }
+        },
+        {
+            "name": "Bid 3",
+            "action": "POST /orders",
+            "body": {
+                "id": 1103,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 98,
+                "qty": 1
+            }
+        },
+        {
+            "name": "Query 3 Levels",
+            "action": "GET /depth?symbol=AAPL&levels=3",
+            "expect_body": {
+                "bids": [
+                    {
+                        "price": 100,
+                        "qty": 1
+                    },
+                    {
+                        "price": 99,
+                        "qty": 1
+                    },
+                    {
+                        "price": 98,
+                        "qty": 1
+                    }
+                ]
+            }
+        }
+    ]
+}

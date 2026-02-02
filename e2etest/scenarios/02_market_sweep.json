@@ -1,0 +1,74 @@
+{
+    "meta": {
+        "name": "Market Sweep",
+        "description": "Verify a market order sweeps multiple price levels."
+    },
+    "steps": [
+        {
+            "name": "Add Sell Level 1",
+            "action": "POST /orders",
+            "body": {
+                "id": 201,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 1000,
+                "qty": 10
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Add Sell Level 2",
+            "action": "POST /orders",
+            "body": {
+                "id": 202,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 1010,
+                "qty": 20
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Market Buy Sweep",
+            "action": "POST /orders",
+            "body": {
+                "id": 203,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 2,
+                "qty": 25
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": [
+                    {
+                        "price": 1000,
+                        "qty": 10,
+                        "makerId": 201,
+                        "takerId": 203
+                    },
+                    {
+                        "price": 1010,
+                        "qty": 15,
+                        "makerId": 202,
+                        "takerId": 203
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify Remaining",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "asks": [
+                    {
+                        "price": 1010,
+                        "qty": 5
+                    }
+                ]
+            }
+        }
+    ]
+}

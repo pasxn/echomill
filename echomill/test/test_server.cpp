@@ -20,18 +20,17 @@ public:
 
 class ServerTest : public ::testing::Test {
 protected:
-    OrderBook book;
     InstrumentManager instruments;
     std::unique_ptr<TestableServer> server;
     int sv[2]; // Socket pair: sv[0] user side, sv[1] server side
 
     void SetUp() override
     {
-        // Setup mock instrument
-        Instrument apple{"AAPL", "Apple Inc.", 100, 100, 2}; // tick 0.01 (100 scaled)
-        instruments.addInstrument(apple);
+        // Setup mock instruments
+        instruments.addInstrument({"AAPL", "Apple Inc.", 100, 1, 10000});
+        instruments.addInstrument({"GOOG", "Alphabet Inc.", 100, 1, 10000});
 
-        server = std::make_unique<TestableServer>(book, instruments);
+        server = std::make_unique<TestableServer>(instruments);
 
         // Create socket pair
         ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
@@ -44,11 +43,17 @@ protected:
     }
 
     // Helper to send request and read response
-    std::string sendRequest(const std::string& req)
+    std::string sendRequest(const std::string& method, const std::string& path, const std::string& body = "")
     {
-        write(sv[0], req.c_str(), req.size());
+        std::stringstream ss;
+        ss << method << " " << path << " HTTP/1.1\r\n";
+        if (!body.empty()) {
+            ss << "Content-Length: " << body.size() << "\r\n";
+        }
+        ss << "\r\n" << body;
 
-        // Invoke exposed protected method
+        std::string req = ss.str();
+        write(sv[0], req.c_str(), req.size());
         server->testHandleClient(sv[1]);
 
         char buffer[4096] = {0};
@@ -58,10 +63,8 @@ protected:
         return "";
     }
 
-    // Helper to extract status from response
     int getStatus(const std::string& resp)
     {
-        // HTTP/1.1 200 OK
         std::stringstream ss(resp);
         std::string proto;
         int code;
@@ -72,73 +75,70 @@ protected:
 
 TEST_F(ServerTest, AddOrder)
 {
-    std::string req = "POST /orders HTTP/1.1\r\n\r\n"
-                      "{\"symbol\": \"AAPL\", \"side\": 1, \"price\": 15000, \"qty\": 10, \"id\": 101, \"type\": 1}";
-
-    std::string resp = sendRequest(req);
+    std::string body = "{\"symbol\": \"AAPL\", \"side\": 1, \"price\": 15000, \"qty\": 10, \"id\": 101, \"type\": 1}";
+    std::string resp = sendRequest("POST", "/orders", body);
     EXPECT_EQ(getStatus(resp), 200);
     EXPECT_TRUE(resp.find("accepted") != std::string::npos);
-
-    // Verify order in book
-    auto bids = book.bidDepth(1);
-    ASSERT_FALSE(bids.empty());
-    EXPECT_EQ(bids[0].price, 15000);
-    EXPECT_EQ(bids[0].totalQty, 10);
 }
 
 TEST_F(ServerTest, InvalidSymbol)
 {
-    std::string req = "POST /orders HTTP/1.1\r\n\r\n"
-                      "{\"symbol\": \"UNKNOWN\", \"side\": 1, \"price\": 15000, \"qty\": 10, \"id\": 102}";
-
-    std::string resp = sendRequest(req);
-    EXPECT_EQ(getStatus(resp), 400); // Bad Request
+    std::string body = "{\"symbol\": \"UNKNOWN\", \"side\": 1, \"price\": 15000, \"qty\": 10, \"id\": 102}";
+    std::string resp = sendRequest("POST", "/orders", body);
+    EXPECT_EQ(getStatus(resp), 400);
 }
 
 TEST_F(ServerTest, CancelOrder)
 {
-    // Add first
-    book.addOrder({201, Side::Buy, OrderType::Limit, 14000, 100, 100, 0});
-
-    std::string req = "POST /orders HTTP/1.1\r\n\r\n"
-                      "{\"id\": 201, \"type\": 2}"; // Type 2 = Cancel
-
-    std::string resp = sendRequest(req);
+    sendRequest("POST", "/orders",
+                "{\"symbol\": \"AAPL\", \"side\": 1, \"price\": 14000, \"qty\": 100, \"id\": 201, \"type\": 1}");
+    std::string resp = sendRequest("DELETE", "/orders", "{\"id\": 201}");
     EXPECT_EQ(getStatus(resp), 200);
     EXPECT_TRUE(resp.find("cancelled") != std::string::npos);
-    EXPECT_TRUE(book.bidDepth(1).empty());
 }
 
 TEST_F(ServerTest, GetDepth)
 {
-    book.addOrder({301, Side::Buy, OrderType::Limit, 10000, 50, 50, 0});
-    book.addOrder({302, Side::Sell, OrderType::Limit, 10100, 50, 50, 0});
-
-    std::string req = "GET /depth?levels=1 HTTP/1.1\r\n\r\n";
-    std::string resp = sendRequest(req);
+    sendRequest("POST", "/orders",
+                "{\"symbol\": \"AAPL\", \"side\": 1, \"price\": 10000, \"qty\": 50, \"id\": 301, \"type\": 1}");
+    std::string resp = sendRequest("GET", "/depth?symbol=AAPL&levels=1");
     EXPECT_EQ(getStatus(resp), 200);
     EXPECT_TRUE(resp.find("\"bids\":") != std::string::npos);
     EXPECT_TRUE(resp.find("10000") != std::string::npos);
-    EXPECT_TRUE(resp.find("10100") != std::string::npos);
+}
+
+TEST_F(ServerTest, CrossInstrumentIsolation)
+{
+    // Add buy for AAPL
+    sendRequest("POST", "/orders",
+                "{\"symbol\": \"AAPL\", \"side\": 1, \"price\": 10000, \"qty\": 50, \"id\": 401, \"type\": 1}");
+
+    // Add sell for GOOG at same price - should NOT match
+    std::string respSell =
+        sendRequest("POST", "/orders",
+                    "{\"symbol\": \"GOOG\", \"side\": -1, \"price\": 10000, \"qty\": 50, \"id\": 402, \"type\": 1}");
+    EXPECT_EQ(getStatus(respSell), 200);
+    EXPECT_TRUE(respSell.find("\"trades\": []") != std::string::npos);
+
+    // Verify AAPL book still has the bid
+    std::string respDepth = sendRequest("GET", "/depth?symbol=AAPL&levels=1");
+    EXPECT_TRUE(respDepth.find("10000") != std::string::npos);
 }
 
 TEST_F(ServerTest, GetTrades)
 {
-    std::string req = "GET /trades HTTP/1.1\r\n\r\n";
-    std::string resp = sendRequest(req);
+    std::string resp = sendRequest("GET", "/trades");
     EXPECT_EQ(getStatus(resp), 200);
 }
 
 TEST_F(ServerTest, GetStatus)
 {
-    std::string req = "GET /status HTTP/1.1\r\n\r\n";
-    std::string resp = sendRequest(req);
+    std::string resp = sendRequest("GET", "/status");
     EXPECT_EQ(getStatus(resp), 200);
 }
 
 TEST_F(ServerTest, NotFound)
 {
-    std::string req = "GET /nothing HTTP/1.1\r\n\r\n";
-    std::string resp = sendRequest(req);
+    std::string resp = sendRequest("GET", "/nothing");
     EXPECT_EQ(getStatus(resp), 404);
 }
