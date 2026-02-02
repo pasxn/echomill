@@ -116,6 +116,34 @@ When a new **aggressive order** arrives (e.g., a market buy order or a limit buy
 
 Each match generates a **Trade** record.
 
+### Price Discovery: How Trade Prices Are Determined
+
+In an order-driven market, there's no central authority setting prices. Instead, the **trade price is determined by the passive order** — the order that was already resting in the book.
+
+**Example:**
+```
+Order Book:
+  Best Ask: $10.50 (100 shares, Order A)
+  Best Bid: $10.45 (200 shares, Order B)
+
+Incoming: Limit Buy at $10.55 for 50 shares (aggressive)
+```
+
+Even though the buyer is willing to pay $10.55, the trade executes at **$10.50** because:
+- Order A (the passive seller) only asked for $10.50.
+- The aggressive buyer gets a better deal than their limit.
+- **The passive order's price always wins.**
+
+| Scenario | Trade Price |
+|----------|-------------|
+| Market order crosses the book | Passive order's price |
+| Limit order crosses the book | Passive order's price (buyer/seller may get better than their limit) |
+
+**Why this matters:**
+- The "market price" you see quoted is simply the **best bid/ask** in the book.
+- Prices emerge naturally from supply and demand (the orders people submit).
+- No central pricing authority — pure price discovery.
+
 ---
 
 ## First Principles: Core Design Decisions
