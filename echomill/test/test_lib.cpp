@@ -43,10 +43,55 @@ struct LevelExpectation {
     Qty bidSize;
 };
 
-// TestableOrderBook to expose insertOrder
+// TestableOrderBook to expose insertOrder and manual reduction
 class TestableOrderBook : public OrderBook {
 public:
     void testInsertOrder(const Order& order) { insertOrder(order); }
+
+    void reduceTaker(Side side, Qty qty) {
+        // Reduce the Taker (Active) order.
+        // Assumption: Taker is at the Best Price (Top of Book) and is the Last Order (Newest).
+        if (side == Side::Buy) {
+            if (m_bids.empty()) return;
+            // Best Bid is m_bids.begin()
+            auto& level = m_bids.begin()->second;
+            if (level.empty()) return;
+            
+            OrderId takerId = level.back().id;
+            auto& order = level.back(); // const? back() returns const ref properly? order is copy or ref?
+            // level.back() is const ref in PriceLevel API we added?
+            // wait, we added const ref `back() const`.
+            // So we take ID.
+            
+            // reduceOrder takes ID.
+            // Check if quantity matches intent?
+            // Just reduce it.
+            if (qty >= 0) { // Safety
+                // Check if full fill?
+                // We need remaining qty.
+                // findOrder can get it.
+                if (auto* ptr = findOrder(takerId)) {
+                     if (ptr->remaining > qty)
+                        modifyOrder(takerId, ptr->remaining - qty);
+                     else
+                        cancelOrder(takerId);
+                }
+            }
+        } else {
+             if (m_asks.empty()) return;
+             // Best Ask is m_asks.begin() (less/ascending)
+             auto& level = m_asks.begin()->second;
+             if (level.empty()) return;
+             
+             OrderId takerId = level.back().id;
+             if (auto* ptr = findOrder(takerId)) {
+                 if (ptr->remaining > qty)
+                    modifyOrder(takerId, ptr->remaining - qty);
+                 else
+                    cancelOrder(takerId);
+             }
+        }
+    }
 };
 
 class LobsterReplayTest : public ::testing::TestWithParam<std::string> {
@@ -99,29 +144,60 @@ protected:
 
         std::string msgLine, bookLine;
         int lineNum = 0;
+        OrderId lastAggressorId = 0;
 
         while (std::getline(fMsg, msgLine) && std::getline(fBook, bookLine)) {
             lineNum++;
-            if (lineNum > 100)
-                break; // Limit replay to 100 messages to ensure stability
+            if (lineNum > 1000)
+                break; // Limit replay to 1k messages
 
             Message msg = parseMessage(msgLine);
             auto expectedLevels = parseBook(bookLine);
+            
+            // Debug print
+            if (lineNum <= 20 || lineNum == 100) { // Trace first 100 lines for GOOG?
+                std::cout << "Line " << lineNum << " Type " << msg.type << " ID " << msg.id 
+                          << " P " << msg.price << " S " << msg.size << " Dir " << msg.direction << std::endl;
+            }
 
             if (msg.type == 1) {
                 Side side = (msg.direction == 1) ? Side::Buy : Side::Sell;
                 Order order{msg.id, side, OrderType::Limit, msg.price, msg.size, msg.size, 0};
                 book.testInsertOrder(order);
-            } else if (msg.type == 2 || msg.type == 4) {
+                lastAggressorId = msg.id;
+                if (lineNum <= 20) std::cout << "Inserted Order " << msg.id << " Side " << (int)side << " P " << msg.price << std::endl;
+            } else if (msg.type == 2) {
+                // Partial deletion
                 if (auto* order = book.findOrder(msg.id)) {
-                    if (order->remaining > msg.size) {
+                    if (order->remaining > msg.size)
                         book.modifyOrder(msg.id, order->remaining - msg.size);
-                    } else {
+                    else
                         book.cancelOrder(msg.id);
-                    }
                 }
             } else if (msg.type == 3) {
+                // Total deletion
                 book.cancelOrder(msg.id);
+            } else if (msg.type == 4) {
+                // Execution of visible limit order
+                // 1. Reduce Passive Order (Maker) - referenced by msg.id
+                if (auto* order = book.findOrder(msg.id)) {
+                    if (order->remaining > msg.size)
+                        book.modifyOrder(msg.id, order->remaining - msg.size);
+                    else
+                        book.cancelOrder(msg.id);
+                }
+                
+                // 2. Reduce Active Order (Taker)
+                // Direction 1 -> Buyer Taker. Reduce Best Buy.
+                // Direction -1 -> Seller Taker. Reduce Best Sell.
+                Side takerSide = (msg.direction == 1) ? Side::Buy : Side::Sell;
+                book.reduceTaker(takerSide, msg.size);
+
+            } else if (msg.type == 5) {
+                // Execution of hidden limit order
+                // Only Reduce Active Order (Taker)
+                Side takerSide = (msg.direction == 1) ? Side::Buy : Side::Sell;
+                book.reduceTaker(takerSide, msg.size);
             }
 
             // Validate Depth

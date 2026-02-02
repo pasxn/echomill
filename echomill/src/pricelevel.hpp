@@ -33,6 +33,7 @@ public:
 
     // Get front order (for inspection)
     [[nodiscard]] const Order& front() const { return m_orders.front(); }
+    [[nodiscard]] const Order& back() const { return m_orders.back(); }
 
     // Iterator access (for depth queries)
     [[nodiscard]] auto begin() const { return m_orders.begin(); }

@@ -63,11 +63,12 @@ private:
     // Get current timestamp
     [[nodiscard]] static Timestamp now();
 
+protected:
     // Bids: sorted descending (highest price first)
     std::map<Price, PriceLevel, std::greater<Price>> m_bids;
 
     // Asks: sorted ascending (lowest price first)
-    std::map<Price, PriceLevel> m_asks;
+    std::map<Price, PriceLevel, std::less<Price>> m_asks;
 
     // Fast order lookup by ID: maps to (Side, Price)
     std::unordered_map<OrderId, std::pair<Side, Price>> m_orderIndex;

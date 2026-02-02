@@ -25,3 +25,27 @@ sudo apt-get install libgtest-dev
 ## Guidelines
 
 See `docs/codingguidelines.md` for coding standards.
+
+## Building and Testing
+
+EchoMill uses CMake for its build system.
+### Build EchoMill (Engine & Tests)
+```bash
+cmake -B echomill/build -S echomill && cmake --build echomill/build -j
+```
+
+### Run Tests
+To run all tests:
+```bash
+./echomill/build/test/echomill_test
+```
+
+To run a specific test suite (e.g., `ServerTest`):
+```bash
+./echomill/build/test/echomill_test --gtest_filter="ServerTest.*"
+```
+
+To run a single test case (e.g., `AddOrder` in `ServerTest`):
+```bash
+./echomill/build/test/echomill_test --gtest_filter="ServerTest.AddOrder"
+```
