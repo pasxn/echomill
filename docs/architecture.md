@@ -315,7 +315,7 @@ No root-level `CMakeLists.txt` is used; the shell script orchestrates builds.
 | `e2etest/src/` | E2E tester source code (replayer, comparator). |
 | `e2etest/test/` | E2E infrastructure tests (e.g., CSV parser tests). |
 | `config/` | Shared configuration (instruments.json). |
-| `data/` | Sample LOBSTER data (gitignored). |
+| `data/` | Sample LOBSTER data. |
 
 ---
 
@@ -375,5 +375,3 @@ EchoMill is a from-scratch toy matching engine demonstrating:
 3. **Network-ready design**: HTTP/JSON protocol, curl-compatible.
 4. **Rigorous testing**: Unit tests, library-level E2E, and full E2E with golden vector validation.
 5. **High-performance thinking**: Fixed-point prices, minimal allocations, cache-friendly structures.
-
-This project mirrors the core logic of real exchange systems like Millennium Exchange, providing both a deep learning experience and a compelling portfolio piece.
