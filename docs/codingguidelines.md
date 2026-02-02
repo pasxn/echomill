@@ -1,6 +1,6 @@
-# Aetheron Coding Guidelines and Naming Conventions
+# EchoMill Coding Guidelines and Naming Conventions
 
-This document defines the coding standards, naming conventions, and style guidelines for the Aetheron codebase.
+This document defines the coding standards, naming conventions, and style guidelines for the EchoMill codebase.
 
 ## General C++ Guidance
 
@@ -11,7 +11,7 @@ This document defines the coding standards, naming conventions, and style guidel
 - **Prefer `std::optional`/`std::variant`** for expressiveness over sentinel values.
 - **Keep functions short** and single-responsibility. Extract helpers for clarity.
 - **Error handling**: where appropriate use `exceptions` or explicit error-return patterns consistently per module.
-- **Core domain isolated** using traditional templates (SFINAE/enable_if for constraints).
+- **Core domain isolated** using traditional templates (SFINAE/C++20 concepts/enable_if for constraints).
 - **Zero-overhead compile-time polymorphism** in hot paths (e.g., event dispatch).
 - **Runtime virtuals** limited to plugins for extensibility.
 - **Balances isolation/testability** with performance (<5 µs jitter via static dispatch).
@@ -90,11 +90,11 @@ This document defines the coding standards, naming conventions, and style guidel
 - ❌ `running_` (trailing underscore not allowed)
 
 ### Static Member Variables
-**Pattern**: `m_<camelCase>` (same as instance members)
+**Pattern**: `s_<camelCase>`
 
 **Examples**:
-- ✅ `m_logger`
-- ✅ `m_instance`
+- ✅ `s_logger`
+- ✅ `s_instance`
 
 ### Constants
 **Pattern**: `ALL_CAPS` with underscores OR `constexpr` with descriptive names in anonymous namespaces
@@ -226,29 +226,6 @@ void signalHandler(int) { ... }             // WRONG
 
 ## Concurrency and Thread-Safety
 
-- The codebase supports both RT and NRT executors with different threading models.
 - If you add concurrency, **document required locking** and prefer `std::mutex` + RAII wrappers.
 - **Use atomic types** for flags that may be accessed from signal handlers.
 - For RT code, avoid dynamic allocation and blocking operations.
-
-## Rationale
-
-### Why lowercase without underscores for files?
-1. **Consistency**: Matches existing codebase (`applicationmanager.cpp`, `orchestrator.cpp`)
-2. **Simplicity**: Fewer characters, easier to type
-3. **Modern C++**: Common convention in modern C++ projects
-
-### Why camelCase for methods starting with lowercase?
-1. **Standard Practice**: Follows Google C++ Style Guide and many modern C++ codebases
-2. **Visual Distinction**: Clearly separates from types (PascalCase)
-3. **Consistency**: Matches member variable naming pattern (`m_variableName`)
-
-### Why `test_` prefix for test files?
-1. **Discoverability**: Easy to identify test files with `ls test_*` or globbing
-2. **Separation**: Clear separation from implementation files
-3. **Convention**: Widely used pattern in C++ test suites (GoogleTest, Catch2)
-
-### Why `m_` prefix for members?
-1. **Clarity**: Immediately distinguishes members from local variables and parameters
-2. **Avoiding shadowing**: Prevents accidental shadowing in constructors/methods
-3. **Industry Standard**: Widely used in professional C++ codebases
