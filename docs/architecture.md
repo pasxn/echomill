@@ -202,27 +202,57 @@ This layered approach catches bugs early (unit tests) and validates the entire s
 
 ## Data Format: LOBSTER
 
-EchoMill uses [LOBSTER](https://lobsterdata.com/) sample data for testing. LOBSTER provides:
+EchoMill uses [LOBSTER](https://lobsterdata.com/) sample data for testing. LOBSTER provides two CSV files per instrument:
 
-### `message.csv` — The Order Stream
-Each row is an event (order add, cancel, execution, etc.):
-| Column    | Meaning |
-|-----------|---------|
-| Time      | Seconds after midnight (with milliseconds/nanoseconds precision). |
-| Type      | 1=Add, 2=Cancel (partial), 3=Delete, 4=Execute (visible), 5=Execute (hidden), 7=Halt. |
-| Order ID  | Unique identifier. |
-| Size      | Number of shares. |
-| Price     | Dollars × 10000 (e.g., 105200 = $10.52). |
-| Direction | 1=Buy, -1=Sell. |
+### `message_5.csv` — The Order Stream
 
-### `orderbook.csv` — The Golden Vector
-Each row is the book state **after** the corresponding message:
-| Columns | Meaning |
+Each row is an event (order add, cancel, execution, etc.). **No header row.**
+
+| Column | Name      | Meaning |
+|--------|-----------|---------|
+| 1      | Time      | Seconds after midnight (with millisecond/nanosecond precision). |
+| 2      | Type      | 1=Add, 2=Cancel (partial), 3=Delete, 4=Execute (visible), 5=Execute (hidden), 7=Halt. |
+| 3      | Order ID  | Unique identifier assigned in order flow. |
+| 4      | Size      | Number of shares. |
+| 5      | Price     | Dollars × 10000 (e.g., 5853300 = $585.33). |
+| 6      | Direction | 1=Buy, -1=Sell. |
+
+**Example row from AAPL data:**
+```
+34200.004241176,1,16113575,18,5853300,1
+│               │ │        │  │       └─ Direction: 1 = Buy
+│               │ │        │  └───────── Price: $585.33 (5853300 ÷ 10000)
+│               │ │        └──────────── Size: 18 shares
+│               │ └───────────────────── Order ID: 16113575
+│               └─────────────────────── Type: 1 = Add Order
+└─────────────────────────────────────── Time: 34200.004 sec = 09:30:00.004 AM
+```
+
+### `orderbook_5.csv` — The Golden Vector
+
+Each row is the book state **after** the corresponding message. For 5-level depth, there are **20 columns** (no header row):
+
+| Columns | Pattern |
 |---------|---------|
-| Ask Price 1, Ask Size 1, Bid Price 1, Bid Size 1, ... | Top-of-book (level 1). |
-| Ask Price 2, Ask Size 2, Bid Price 2, Bid Size 2, ... | Level 2, and so on up to the depth (5 levels for our project). |
+| 1-4     | Ask Price 1, Ask Size 1, Bid Price 1, Bid Size 1 (Level 1 = best) |
+| 5-8     | Ask Price 2, Ask Size 2, Bid Price 2, Bid Size 2 (Level 2) |
+| 9-12    | Ask Price 3, Ask Size 3, Bid Price 3, Bid Size 3 (Level 3) |
+| 13-16   | Ask Price 4, Ask Size 4, Bid Price 4, Bid Size 4 (Level 4) |
+| 17-20   | Ask Price 5, Ask Size 5, Bid Price 5, Bid Size 5 (Level 5) |
 
-By comparing our engine's output to `orderbook.csv`, we verify correctness.
+**Example row from AAPL data:**
+```
+5859400,200,5853300,18,5859800,200,5853000,150,5861000,200,...
+│       │   │       │
+│       │   │       └─ Bid Size 1: 18 shares at best bid
+│       │   └───────── Bid Price 1: $585.33 (best bid)
+│       └───────────── Ask Size 1: 200 shares at best ask
+└───────────────────── Ask Price 1: $585.94 (best ask)
+
+Spread: $585.94 - $585.33 = $0.61
+```
+
+By comparing our engine's depth output to `orderbook.csv` row-by-row, we verify correctness.
 
 ---
 
