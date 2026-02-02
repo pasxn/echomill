@@ -1,6 +1,8 @@
 # EchoMill Architecture
 This document describes the design and architecture of the EchoMill project, a toy implementation of a stock exchange matching engine, built from first principles in modern C++.
 
+---
+
 ## What is EchoMill?
 
 EchoMill is a miniature replica of a real stock exchange. Imagine a busy marketplace:
@@ -16,6 +18,7 @@ EchoMill implements this entire workflow:
 3. If matched, generate trades; otherwise, store the order in the **order book** (a sorted list of waiting orders).
 4. Answer queries like "What's the best current buy/sell price?" or "How much liquidity is available at each price level?"
 
+---
 
 ## System Overview
 
@@ -23,10 +26,9 @@ EchoMill is organized into three independent components, each with its own build
 
 ```
 echomill/                 <-- Core matching engine (library + server)
-e2etest/                  <-- End-to-end test tool (replay + validation)
+e2etest/                  <-- End-to-end test framework
 client/                   <-- CLI tool for manual interaction
 config/                   <-- Shared configuration (instruments)
-data/                     <-- Sample data files (LOBSTER format)
 ```
 
 ### Component Responsibilities
@@ -35,7 +37,9 @@ data/                     <-- Sample data files (LOBSTER format)
 |-------------|------|
 | **echomill** | The "exchange server." Maintains the order book, processes incoming orders, matches them, generates trades, and answers queries. Runs as a standalone server listening for network requests. |
 | **client**   | A command-line tool for humans. Lets you type commands like "BUY 100 shares at $10.50" and see responses. Also supports querying the current order book depth. |
-| **e2etest**  | An automated tester. Replays historical order data (from LOBSTER files), sends orders to the running engine, queries the book state, and compares results against a "golden vector" (the known correct book state). |
+| **e2etest**  | Automated scenario tester. Runs scripted interactions (e.g. "Scenario A: Large Trade") against the server and validates state. |
+
+---
 
 ## How They Communicate
 
@@ -55,11 +59,8 @@ All three components can run on **different machines**. They communicate over a 
 └──────────────┘       JSON Response      └──────────────────┘
 ```
 
-**E2E Test Workflow:**
-1. **Send order**: `POST /orders` with data from `message.csv` → Server responds with "accepted" and any generated trades.
-2. **Query state**: `GET /depth?levels=5` → Server responds with current book state (bids/asks as JSON).
-3. **Compare**: e2etest compares the received depth to the corresponding row in `orderbook.csv` (the golden vector).
-4. **Repeat** for each message in the file.
+**E2E Test Workflow (Scenario Testing):**
+The `e2etest` framework treats the server as a black box. A Python runner spawns the server and executes a sequence of HTTP requests defined in a JSON file, verifying the response and state at each step.
 
 **Why HTTP/JSON?**
 - Works with `curl` out of the box (no custom client needed for quick tests).
@@ -75,6 +76,8 @@ All three components can run on **different machines**. They communicate over a 
 | `/depth?levels=5` | GET  | Query current order book depth (top 5 bid/ask levels). |
 | `/trades`       | GET    | Retrieve recent trades. |
 | `/status`       | GET    | Health check. |
+
+---
 
 ## The Order Book: Heart of the Engine
 
@@ -137,6 +140,8 @@ Even though the buyer is willing to pay $10.55, the trade executes at **$10.50**
 - Prices emerge naturally from supply and demand (the orders people submit).
 - No central pricing authority — pure price discovery.
 
+---
+
 ## First Principles: Core Design Decisions
 
 ### 1. Price-Time Priority
@@ -156,8 +161,7 @@ For higher performance (and to learn optimization), you can later switch to:
 
 ### 3. Fixed-Point Prices
 Real engines avoid floating-point for prices (imprecision, non-determinism). Instead:
-- Store prices as **integers** (e.g., dollars × 10000, so $10.52 = 105200).
-- LOBSTER data already uses this convention (prices multiplied by 10000).
+- Store prices as **integers** (e.g., dollars × 10000, so $10.52 = 105200). This fixed-point approach ensures precision.
 
 ### 4. Minimal Allocations in the Hot Path
 Every `new` or `malloc` has overhead. For high performance:
@@ -167,6 +171,8 @@ Every `new` or `malloc` has overhead. For high performance:
 
 ### 5. No Magic Numbers
 All constants (tick sizes, buffer sizes, timeouts) are defined as named `constexpr` values, per the coding guidelines.
+
+---
 
 ## Testing Strategy
 
@@ -180,66 +186,90 @@ All constants (tick sizes, buffer sizes, timeouts) are defined as named `constex
 - No network, no server process—just the core logic.
 
 ### Full End-to-End Test (in `e2etest/`)
-- Spawns the `echomill` server as a separate process.
-- Connects over HTTP, replays messages from LOBSTER `message.csv`.
-- After each message, queries `/depth` and compares to the corresponding row in LOBSTER `orderbook.csv` (the **golden vector**).
-- If any mismatch: test fails, indicating a bug in matching logic.
+- Spawns the `echomill` server and runs automated scenario scripts.
+- Verifies complex flows (e.g. self-matching prevention, large order sweeps, partial fills).
 
 This layered approach catches bugs early (unit tests) and validates the entire stack (E2E).
 
-## Data Format: LOBSTER
+---
 
-EchoMill uses [LOBSTER](https://lobsterdata.com/) sample data for testing. LOBSTER provides two CSV files per instrument:
+## Scenario Testing Framework
 
-### `message_5.csv` — The Order Stream
+EchoMill uses a black-box testing strategy driven by declarative JSON scenarios. This allows testing complex market behaviors (like sweeps, partial fills, and self-matching) without writing compilation-heavy C++ code.
 
-Each row is an event (order add, cancel, execution, etc.). **No header row.**
+### 1. Test Architecture
 
-| Column | Name      | Meaning |
-|--------|-----------|---------|
-| 1      | Time      | Seconds after midnight (with millisecond/nanosecond precision). |
-| 2      | Type      | 1=Add, 2=Cancel (partial), 3=Delete, 4=Execute (visible), 5=Execute (hidden), 7=Halt. |
-| 3      | Order ID  | Unique identifier assigned in order flow. |
-| 4      | Size      | Number of shares. |
-| 5      | Price     | Dollars × 10000 (e.g., 5853300 = $585.33). |
-| 6      | Direction | 1=Buy, -1=Sell. |
-
-**Example row from AAPL data:**
 ```
-34200.004241176,1,16113575,18,5853300,1
-│               │ │        │  │       └─ Direction: 1 = Buy
-│               │ │        │  └───────── Price: $585.33 (5853300 ÷ 10000)
-│               │ │        └──────────── Size: 18 shares
-│               │ └───────────────────── Order ID: 16113575
-│               └─────────────────────── Type: 1 = Add Order
-└─────────────────────────────────────── Time: 34200.004 sec = 09:30:00.004 AM
+e2etest/
+├── runner.py           # Python test runner
+├── scenarios/          # JSON test definitions
+│   ├── 01_basic_match.json
+│   ├── 02_market_sweep.json
+│   └── ...
+└── README.md
 ```
 
-### `orderbook_5.csv` — The Golden Vector
+### 2. The Runner (`runner.py`)
+The Python runner orchestrates the test session:
+1.  **Spawns** a fresh `echomill` server instance on a random ephemeral port.
+2.  **Parses** all `.json` scenario files.
+3.  **Executes** each scenario sequentially:
+    - Sends HTTP requests specified in `steps`.
+    - Validates HTTP status codes.
+    - Validates JSON response bodies against expectations (subset matching).
+4.  **Reports** results and shuts down the server.
 
-Each row is the book state **after** the corresponding message. For 5-level depth, there are **20 columns** (no header row):
+### 3. Scenario Definition (JSON)
+Each file represents one isolated test case.
 
-| Columns | Pattern |
-|---------|---------|
-| 1-4     | Ask Price 1, Ask Size 1, Bid Price 1, Bid Size 1 (Level 1 = best) |
-| 5-8     | Ask Price 2, Ask Size 2, Bid Price 2, Bid Size 2 (Level 2) |
-| 9-12    | Ask Price 3, Ask Size 3, Bid Price 3, Bid Size 3 (Level 3) |
-| 13-16   | Ask Price 4, Ask Size 4, Bid Price 4, Bid Size 4 (Level 4) |
-| 17-20   | Ask Price 5, Ask Size 5, Bid Price 5, Bid Size 5 (Level 5) |
-
-**Example row from AAPL data:**
+**Schema Example:**
+```json
+{
+  "meta": {
+    "name": "Market Buy Sweep",
+    "description": "Verify that a market order sweeps multiple price levels."
+  },
+  "setup": {
+    "instrument": "AAPL"
+  },
+  "steps": [
+    {
+      "name": "Add Passive Sell 1",
+      "action": "POST /orders",
+      "body": { "symbol": "AAPL", "side": "sell", "type": "limit", "price": 1050, "qty": 10 },
+      "expect_status": 200
+    },
+    {
+      "name": "Add Passive Sell 2",
+      "action": "POST /orders",
+      "body": { "symbol": "AAPL", "side": "sell", "type": "limit", "price": 1055, "qty": 20 },
+      "expect_status": 200
+    },
+    {
+      "name": "Execute Market Buy",
+      "action": "POST /orders",
+      "body": { "symbol": "AAPL", "side": "buy", "type": "market", "qty": 25 },
+      "expect_body": {
+        "trades": [
+          { "price": 1050, "qty": 10 },
+          { "price": 1055, "qty": 15 }
+        ]
+      }
+    },
+    {
+      "name": "Verify Remaining Liquidity",
+      "action": "GET /depth?levels=1",
+      "expect_body": {
+        "asks": [ { "price": 1055, "qty": 5 } ]
+      }
+    }
+  ]
+}
 ```
-5859400,200,5853300,18,5859800,200,5853000,150,5861000,200,...
-│       │   │       │
-│       │   │       └─ Bid Size 1: 18 shares at best bid
-│       │   └───────── Bid Price 1: $585.33 (best bid)
-│       └───────────── Ask Size 1: 200 shares at best ask
-└───────────────────── Ask Price 1: $585.94 (best ask)
 
-Spread: $585.94 - $585.33 = $0.61
-```
+This declarative approach ensures tests are readable, easily extensible, and decoupled from the C++ implementation.
 
-By comparing our engine's depth output to `orderbook.csv` row-by-row, we verify correctness.
+---
 
 ## Instruments Configuration
 
@@ -267,9 +297,11 @@ Instruments (tradable symbols) are defined in `config/instruments.json`:
 - **symbol**: Short identifier.
 - **tick_size**: Minimum price increment (e.g., $0.01).
 - **lot_size**: Minimum quantity increment.
-- **price_scale**: Multiplier for fixed-point representation (matches LOBSTER convention).
+- **price_scale**: Multiplier for fixed-point representation.
 
-The engine loads this file at startup to validate incoming orders. The client and e2etest can also load it for display and validation purposes.
+The engine loads this file at startup to validate incoming orders.
+
+---
 
 ## Build System
 
@@ -285,6 +317,8 @@ Each component has its own `CMakeLists.txt` and can be built independently:
 
 No root-level `CMakeLists.txt` is used; the shell script orchestrates builds.
 
+---
+
 ## Directory Roles
 
 | Path | Purpose |
@@ -293,10 +327,10 @@ No root-level `CMakeLists.txt` is used; the shell script orchestrates builds.
 | `echomill/test/` | Unit tests and mini library-level E2E tests. |
 | `client/src/` | CLI tool source code. |
 | `client/test/` | CLI component tests. |
-| `e2etest/src/` | E2E tester source code (replayer, comparator). |
-| `e2etest/test/` | E2E infrastructure tests (e.g., CSV parser tests). |
+| `e2etest/scripts/` | Scenario testing scripts. |
 | `config/` | Shared configuration (instruments.json). |
-| `data/` | Sample LOBSTER data. |
+
+---
 
 ## Key Classes (Conceptual)
 
@@ -344,11 +378,13 @@ public:
 };
 ```
 
+---
+
 ## Summary
 
 EchoMill is a from-scratch toy matching engine demonstrating:
 1. **Order book mechanics** with price-time priority.
 2. **Clean architecture**: Separate components for engine, testing, and CLI.
 3. **Network-ready design**: HTTP/JSON protocol, curl-compatible.
-4. **Rigorous testing**: Unit tests, library-level E2E, and full E2E with golden vector validation.
+4. **Rigorous testing**: Unit tests, library-level E2E, and scenario-driven full E2E.
 5. **High-performance thinking**: Fixed-point prices, minimal allocations, cache-friendly structures.

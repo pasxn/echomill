@@ -16,7 +16,7 @@ if [[ "$1" == "--check" ]]; then
 fi
 
 # Find all C++ source files
-FILES=$(find src test example extra -type f \( -iname '*.hpp' -o -iname '*.cpp' \) 2>/dev/null)
+FILES=$(find echomill -type f \( -iname '*.hpp' -o -iname '*.cpp' \) 2>/dev/null)
 
 if [ -z "$FILES" ]; then
     echo "⚠️  No C++ files found"
