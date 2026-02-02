@@ -1,0 +1,27 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtest-dev cmake g++
+
+      - name: Configure CMake
+        run: cmake -B echomill/build -S echomill
+
+      - name: Build Core & Tests
+        run: cmake --build echomill/build -j $(nproc)
+
+      - name: Run Unit Tests
+        run: ./echomill/build/test/echomill_test

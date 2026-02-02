@@ -1,0 +1,80 @@
+{
+    "meta": {
+        "name": "FIFO Priority",
+        "description": "Verify orders at the same price are matched in arrival order."
+    },
+    "steps": [
+        {
+            "name": "Add First Passive Sell",
+            "action": "POST /orders",
+            "body": {
+                "id": 601,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 1000,
+                "qty": 10
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Add Second Passive Sell",
+            "action": "POST /orders",
+            "body": {
+                "id": 602,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 1000,
+                "qty": 10
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Aggressive Buy (Half Level)",
+            "action": "POST /orders",
+            "body": {
+                "id": 603,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 1000,
+                "qty": 10
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": [
+                    {
+                        "price": 1000,
+                        "qty": 10,
+                        "makerId": 601,
+                        "takerId": 603
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Aggressive Buy (Remaining Level)",
+            "action": "POST /orders",
+            "body": {
+                "id": 604,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 1000,
+                "qty": 10
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": [
+                    {
+                        "price": 1000,
+                        "qty": 10,
+                        "makerId": 602,
+                        "takerId": 604
+                    }
+                ]
+            }
+        }
+    ]
+}

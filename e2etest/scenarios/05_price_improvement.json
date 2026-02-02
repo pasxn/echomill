@@ -1,0 +1,52 @@
+{
+    "meta": {
+        "name": "Price Improvement",
+        "description": "Aggressive buy at high price should match passive sell at lower price (improving the buyer's price)."
+    },
+    "steps": [
+        {
+            "name": "Add Passive Sell at 100",
+            "action": "POST /orders",
+            "body": {
+                "id": 501,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 10000,
+                "qty": 50
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Aggressive Buy at 105",
+            "action": "POST /orders",
+            "body": {
+                "id": 502,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 10500,
+                "qty": 50
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": [
+                    {
+                        "price": 10000,
+                        "qty": 50,
+                        "makerId": 501,
+                        "takerId": 502
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify Book Clear",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "asks": [],
+                "bids": []
+            }
+        }
+    ]
+}

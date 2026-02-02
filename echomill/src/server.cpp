@@ -14,9 +14,12 @@ namespace echomill {
 
 using namespace json;
 
-Server::Server(OrderBook& book, const InstrumentManager& instruments)
-    : m_book(book), m_instruments(instruments), m_running(false), m_serverSocket(-1)
+Server::Server(const InstrumentManager& instruments) : m_instruments(instruments), m_running(false), m_serverSocket(-1)
 {
+    // Initialize one OrderBook per instrument
+    for (const auto& symbol : m_instruments.allSymbols()) {
+        m_books.emplace(std::piecewise_construct, std::forward_as_tuple(symbol), std::forward_as_tuple());
+    }
 }
 
 void Server::run(uint16_t port)
@@ -82,19 +85,54 @@ void Server::stop()
 
 void Server::handleClient(int clientSocket)
 {
-    char buffer[4096] = {0};
-    ssize_t valread = read(clientSocket, buffer, 4096);
-    if (valread <= 0)
-        return;
+    std::string request;
+    char buffer[4096];
+    bool headerComplete = false;
+    size_t bodyTarget = 0;
+    size_t bodyRead = 0;
 
-    std::string request(buffer, valread);
+    // Read headers
+    while (!headerComplete) {
+        ssize_t n = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (n <= 0)
+            return;
+        request.append(buffer, n);
 
-    // Parse Request Line (e.g., "POST /orders HTTP/1.1")
+        auto pos = request.find("\r\n\r\n");
+        if (pos != std::string::npos) {
+            headerComplete = true; // Fixed case
+
+            // Extract Content-Length if present
+            auto clPos = request.find("Content-Length: ");
+            if (clPos != std::string::npos) {
+                auto clEnd = request.find("\r\n", clPos);
+                std::string clVal = request.substr(clPos + 16, clEnd - (clPos + 16));
+                bodyTarget = std::stoul(clVal);
+            }
+
+            bodyRead = request.size() - (pos + 4);
+        }
+    }
+
+    // Read remaining body
+    while (bodyRead < bodyTarget) {
+        size_t toRead = std::min((size_t)sizeof(buffer), bodyTarget - bodyRead);
+        ssize_t n = recv(clientSocket, buffer, toRead, 0);
+        if (n <= 0)
+            break;
+        request.append(buffer, n);
+        bodyRead += n;
+    }
+
+    auto doubleCRLF = request.find("\r\n\r\n");
+    std::string body = request.substr(doubleCRLF + 4);
+
+    // RESTORED: Parse Request Line (e.g., "POST /orders HTTP/1.1")
     std::istringstream stream(request);
     std::string method, path, protocol;
     stream >> method >> path >> protocol;
 
-    // Separate Query String
+    // RESTORED: Separate Query String
     std::string queryString;
     auto quesPos = path.find('?');
     if (quesPos != std::string::npos) {
@@ -102,20 +140,15 @@ void Server::handleClient(int clientSocket)
         path = path.substr(0, quesPos);
     }
 
-    std::string body;
-    auto doubleCRLF = request.find("\r\n\r\n");
-    if (doubleCRLF != std::string::npos) {
-        body = request.substr(doubleCRLF + 4);
-    }
-
     std::string response;
     try {
-        if (path == "/orders" && method == "POST") {
-            int type = extractInt(body, "type");
-            if (type == 2 || type == 3) {
+        if (path == "/orders") {
+            if (method == "POST") {
+                response = handleAddOrder(body);
+            } else if (method == "DELETE") {
                 response = handleCancelOrder(body);
             } else {
-                response = handleAddOrder(body);
+                response = createResponse(405, "{\"error\": \"Method Not Allowed\"}");
             }
         } else if (path == "/depth" && method == "GET") {
             response = handleGetDepth(queryString);
@@ -159,7 +192,8 @@ std::string Server::handleAddOrder(const std::string& body)
         order.type = OrderType::Market;
 
     order.remaining = order.qty;
-    auto trades = m_book.addOrder(order);
+    auto& book = m_books.at(symbol);
+    auto trades = book.addOrder(order);
 
     std::stringstream ss;
     ss << "{\"status\": \"accepted\", \"trades\": [";
@@ -177,12 +211,14 @@ std::string Server::handleAddOrder(const std::string& body)
 std::string Server::handleCancelOrder(const std::string& body)
 {
     OrderId id = extractInt(body, "id");
-    bool success = m_book.cancelOrder(id);
-    if (success) {
-        return createResponse(200, "{\"status\": \"cancelled\"}");
-    } else {
-        return createResponse(404, "{\"error\": \"Order not found\"}");
+    // Search across all books for the order (simplification for now)
+    // In a real system, the request would usually include the symbol.
+    for (auto& [symbol, book] : m_books) {
+        if (book.cancelOrder(id)) {
+            return createResponse(200, "{\"status\": \"cancelled\"}");
+        }
     }
+    return createResponse(404, "{\"error\": \"Order not found\"}");
 }
 
 std::string Server::handleGetDepth(const std::string& queryString)
@@ -190,12 +226,14 @@ std::string Server::handleGetDepth(const std::string& queryString)
     int levels = 5;
     // Parse query string for levels=... (naive parsing)
     // "levels=10"
-    std::string levelStr = getQueryParam(queryString, "levels");
-    if (!levelStr.empty())
-        levels = std::stoi(levelStr);
+    std::string symbol = getQueryParam(queryString, "symbol");
+    if (symbol.empty() || m_books.find(symbol) == m_books.end()) {
+        return createResponse(400, "{\"error\": \"Invalid or missing symbol\"}");
+    }
 
-    auto bids = m_book.bidDepth(levels);
-    auto asks = m_book.askDepth(levels);
+    auto& book = m_books.at(symbol);
+    auto bids = book.bidDepth(levels);
+    auto asks = book.askDepth(levels);
 
     std::stringstream ss;
     ss << "{\"bids\": [";
@@ -226,7 +264,11 @@ std::string Server::handleGetTrades()
 
 std::string Server::handleStatus()
 {
-    return createResponse(200, "{\"status\": \"ok\", \"orders\": " + std::to_string(m_book.orderCount()) + "}");
+    size_t totalOrders = 0;
+    for (const auto& [symbol, book] : m_books) {
+        totalOrders += book.orderCount();
+    }
+    return createResponse(200, "{\"status\": \"ok\", \"orders\": " + std::to_string(totalOrders) + "}");
 }
 
 std::string Server::createResponse(int statusCode, const std::string& body)

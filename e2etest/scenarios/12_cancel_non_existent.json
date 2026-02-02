@@ -1,0 +1,19 @@
+{
+    "meta": {
+        "name": "Cancel Non-Existent Order",
+        "description": "Verify the server returns 404 for canceling an ID that doesn't exist."
+    },
+    "steps": [
+        {
+            "name": "Cancel Non-Existent",
+            "action": "DELETE /orders",
+            "body": {
+                "id": 999999
+            },
+            "expect_status": 404,
+            "expect_body": {
+                "error": "Order not found"
+            }
+        }
+    ]
+}

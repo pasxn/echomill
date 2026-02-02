@@ -1,0 +1,58 @@
+{
+    "meta": {
+        "name": "Basic Matching",
+        "description": "Verify a simple limit order match."
+    },
+    "steps": [
+        {
+            "name": "Add Passive Sell",
+            "action": "POST /orders",
+            "body": {
+                "id": 101,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 15000,
+                "qty": 100
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Execute Aggressive Buy",
+            "action": "POST /orders",
+            "body": {
+                "id": 102,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 15000,
+                "qty": 50
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "status": "accepted",
+                "trades": [
+                    {
+                        "price": 15000,
+                        "qty": 50,
+                        "makerId": 101,
+                        "takerId": 102
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify Depth",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "asks": [
+                    {
+                        "price": 15000,
+                        "qty": 50
+                    }
+                ],
+                "bids": []
+            }
+        }
+    ]
+}

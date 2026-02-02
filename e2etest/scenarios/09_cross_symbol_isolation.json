@@ -1,0 +1,61 @@
+{
+    "meta": {
+        "name": "Cross Symbol Isolation",
+        "description": "Verify orders for different symbols do not match."
+    },
+    "steps": [
+        {
+            "name": "Add AAPL Bid",
+            "action": "POST /orders",
+            "body": {
+                "id": 901,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 1000,
+                "qty": 10
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Add GOOG Ask (Same Price)",
+            "action": "POST /orders",
+            "body": {
+                "id": 902,
+                "symbol": "GOOG",
+                "side": -1,
+                "type": 1,
+                "price": 1000,
+                "qty": 10
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": []
+            }
+        },
+        {
+            "name": "Verify AAPL Bid Still Exists",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "bids": [
+                    {
+                        "price": 1000,
+                        "qty": 10
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify GOOG Ask Still Exists",
+            "action": "GET /depth?symbol=GOOG&levels=1",
+            "expect_body": {
+                "asks": [
+                    {
+                        "price": 1000,
+                        "qty": 10
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,56 @@
+{
+    "meta": {
+        "name": "Partial Fill",
+        "description": "Verify aggressive order matches only part of a resting order."
+    },
+    "steps": [
+        {
+            "name": "Add Large Passive Sell",
+            "action": "POST /orders",
+            "body": {
+                "id": 401,
+                "symbol": "AAPL",
+                "side": -1,
+                "type": 1,
+                "price": 15000,
+                "qty": 100
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Execute Smaller Aggressive Buy",
+            "action": "POST /orders",
+            "body": {
+                "id": 402,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 15000,
+                "qty": 30
+            },
+            "expect_status": 200,
+            "expect_body": {
+                "trades": [
+                    {
+                        "price": 15000,
+                        "qty": 30,
+                        "makerId": 401,
+                        "takerId": 402
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify Remaining Passive Qty",
+            "action": "GET /depth?symbol=AAPL&levels=1",
+            "expect_body": {
+                "asks": [
+                    {
+                        "price": 15000,
+                        "qty": 70
+                    }
+                ]
+            }
+        }
+    ]
+}

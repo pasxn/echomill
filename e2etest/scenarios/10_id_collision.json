@@ -1,0 +1,57 @@
+{
+    "meta": {
+        "name": "Order ID Collision Fix Verification",
+        "description": "Verify that adding a duplicate ID replaces the existing order (robustness fix)."
+    },
+    "steps": [
+        {
+            "name": "Add Original Order",
+            "action": "POST /orders",
+            "body": {
+                "id": 1001,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 1000,
+                "qty": 10
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Add Duplicate ID (Price 1010)",
+            "action": "POST /orders",
+            "body": {
+                "id": 1001,
+                "symbol": "AAPL",
+                "side": 1,
+                "type": 1,
+                "price": 1010,
+                "qty": 10
+            },
+            "expect_status": 200
+        },
+        {
+            "name": "Verify Replacement",
+            "action": "GET /depth?symbol=AAPL&levels=2",
+            "expect_body": {
+                "bids": [
+                    {
+                        "price": 1010,
+                        "qty": 10
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Verify Old Level is Gone",
+            "action": "GET /depth?symbol=AAPL&levels=2",
+            "expect_body": {
+                "bids": [
+                    {
+                        "price": 1010
+                    }
+                ]
+            }
+        }
+    ]
+}
