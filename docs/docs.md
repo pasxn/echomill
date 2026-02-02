@@ -1,7 +1,5 @@
 # EchoMill Architecture
-
 This document describes the design and architecture of the EchoMill project, a toy implementation of a stock exchange matching engine, built from first principles in modern C++.
----
 
 ## What is EchoMill?
 
@@ -18,7 +16,6 @@ EchoMill implements this entire workflow:
 3. If matched, generate trades; otherwise, store the order in the **order book** (a sorted list of waiting orders).
 4. Answer queries like "What's the best current buy/sell price?" or "How much liquidity is available at each price level?"
 
----
 
 ## System Overview
 
@@ -39,8 +36,6 @@ data/                     <-- Sample data files (LOBSTER format)
 | **echomill** | The "exchange server." Maintains the order book, processes incoming orders, matches them, generates trades, and answers queries. Runs as a standalone server listening for network requests. |
 | **client**   | A command-line tool for humans. Lets you type commands like "BUY 100 shares at $10.50" and see responses. Also supports querying the current order book depth. |
 | **e2etest**  | An automated tester. Replays historical order data (from LOBSTER files), sends orders to the running engine, queries the book state, and compares results against a "golden vector" (the known correct book state). |
-
----
 
 ## How They Communicate
 
@@ -80,8 +75,6 @@ All three components can run on **different machines**. They communicate over a 
 | `/depth?levels=5` | GET  | Query current order book depth (top 5 bid/ask levels). |
 | `/trades`       | GET    | Retrieve recent trades. |
 | `/status`       | GET    | Health check. |
-
----
 
 ## The Order Book: Heart of the Engine
 
@@ -144,8 +137,6 @@ Even though the buyer is willing to pay $10.55, the trade executes at **$10.50**
 - Prices emerge naturally from supply and demand (the orders people submit).
 - No central pricing authority — pure price discovery.
 
----
-
 ## First Principles: Core Design Decisions
 
 ### 1. Price-Time Priority
@@ -177,8 +168,6 @@ Every `new` or `malloc` has overhead. For high performance:
 ### 5. No Magic Numbers
 All constants (tick sizes, buffer sizes, timeouts) are defined as named `constexpr` values, per the coding guidelines.
 
----
-
 ## Testing Strategy
 
 ### Unit Tests (in `echomill/test/`)
@@ -197,8 +186,6 @@ All constants (tick sizes, buffer sizes, timeouts) are defined as named `constex
 - If any mismatch: test fails, indicating a bug in matching logic.
 
 This layered approach catches bugs early (unit tests) and validates the entire stack (E2E).
-
----
 
 ## Data Format: LOBSTER
 
@@ -254,8 +241,6 @@ Spread: $585.94 - $585.33 = $0.61
 
 By comparing our engine's depth output to `orderbook.csv` row-by-row, we verify correctness.
 
----
-
 ## Instruments Configuration
 
 Instruments (tradable symbols) are defined in `config/instruments.json`:
@@ -286,8 +271,6 @@ Instruments (tradable symbols) are defined in `config/instruments.json`:
 
 The engine loads this file at startup to validate incoming orders. The client and e2etest can also load it for display and validation purposes.
 
----
-
 ## Build System
 
 Each component has its own `CMakeLists.txt` and can be built independently:
@@ -302,8 +285,6 @@ Each component has its own `CMakeLists.txt` and can be built independently:
 
 No root-level `CMakeLists.txt` is used; the shell script orchestrates builds.
 
----
-
 ## Directory Roles
 
 | Path | Purpose |
@@ -316,8 +297,6 @@ No root-level `CMakeLists.txt` is used; the shell script orchestrates builds.
 | `e2etest/test/` | E2E infrastructure tests (e.g., CSV parser tests). |
 | `config/` | Shared configuration (instruments.json). |
 | `data/` | Sample LOBSTER data. |
-
----
 
 ## Key Classes (Conceptual)
 
@@ -364,8 +343,6 @@ public:
     const Instrument* find(const std::string& symbol) const;
 };
 ```
-
----
 
 ## Summary
 
