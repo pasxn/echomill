@@ -1,7 +1,6 @@
 # EchoMill Architecture
 
-This document describes the design and architecture of the EchoMill project—a toy implementation of a stock exchange matching engine, built from first principles in modern C++. The goal is to faithfully recreate the core mechanics of systems like LSEG's Millennium Exchange for educational and portfolio purposes.
-
+This document describes the design and architecture of the EchoMill project, a toy implementation of a stock exchange matching engine, built from first principles in modern C++.
 ---
 
 ## What is EchoMill?
@@ -11,23 +10,13 @@ EchoMill is a miniature replica of a real stock exchange. Imagine a busy marketp
 - **Sellers** want to sell shares at the highest possible price.
 - The **exchange** sits in the middle, collecting all buy/sell offers (orders) and matching them when a buyer's price meets (or exceeds) a seller's price.
 
-When a match happens, a **trade** occurs—ownership of shares transfers from seller to buyer at an agreed price.
+When a match happens, a **trade** occurs. Ownership of shares transfers from seller to buyer at an agreed price.
 
 EchoMill implements this entire workflow:
 1. Receive orders (buy or sell, at specific prices and quantities).
 2. Attempt to match incoming orders against existing ones.
 3. If matched, generate trades; otherwise, store the order in the **order book** (a sorted list of waiting orders).
 4. Answer queries like "What's the best current buy/sell price?" or "How much liquidity is available at each price level?"
-
----
-
-## Why Build This?
-
-Real matching engines (like Millennium Exchange) are the heart of financial markets. By building one from scratch, you gain deep understanding of:
-- **Price-time priority**: Best prices match first; at the same price, earlier orders get priority.
-- **Order book mechanics**: How bids and asks are organized and updated.
-- **High-performance design**: Minimizing latency, memory allocations, and cache misses.
-- **Software architecture**: Clean separation of concerns, testability, and extensibility.
 
 ---
 
@@ -60,15 +49,22 @@ All three components can run on **different machines**. They communicate over a 
 ```
 ┌──────────────┐       HTTP Request       ┌──────────────────┐
 │    client    │ ───────────────────────► │                  │
-│   (or curl)  │                          │     echomill     │
-│              │ ◄─────────────────────── │   (the server)   │
+│   (or curl)  │                          │                  │
+│              │ ◄─────────────────────── │                  │
 └──────────────┘       JSON Response      │                  │
-                                          └──────────────────┘
-                                                   ▲
-┌──────────────┐       HTTP Requests               │
-│   e2etest    │ ──────────────────────────────────┘
-└──────────────┘
+                                          │     echomill     │
+┌──────────────┐       HTTP Request       │   (the server)   │
+│   e2etest    │ ───────────────────────► │                  │
+│              │                          │                  │
+│              │ ◄─────────────────────── │                  │
+└──────────────┘       JSON Response      └──────────────────┘
 ```
+
+**E2E Test Workflow:**
+1. **Send order**: `POST /orders` with data from `message.csv` → Server responds with "accepted" and any generated trades.
+2. **Query state**: `GET /depth?levels=5` → Server responds with current book state (bids/asks as JSON).
+3. **Compare**: e2etest compares the received depth to the corresponding row in `orderbook.csv` (the golden vector).
+4. **Repeat** for each message in the file.
 
 **Why HTTP/JSON?**
 - Works with `curl` out of the box (no custom client needed for quick tests).
