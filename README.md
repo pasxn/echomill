@@ -34,15 +34,16 @@ EchoMill uses CMake for its build system.
 cmake -B echomill/build -S echomill && cmake --build echomill/build -j
 ```
 
-### Run Tests
-To run all tests:
-```bash
-./echomill/build/test/echomill_test
-```
+### Running Tests
 
-To run a specific test suite (e.g., `ServerTest`):
+Individual tests can be run using Google Test filters.
+
 ```bash
-./echomill/build/test/echomill_test --gtest_filter="ServerTest.*"
+# Run all tests
+./echomill/build/test/echomill_test
+
+# Run matching logic tests only
+./echomill/build/test/echomill_test --gtest_filter="*MatchingTest*"
 ```
 
 To run a single test case (e.g., `AddOrder` in `ServerTest`):

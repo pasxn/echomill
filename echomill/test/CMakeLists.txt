@@ -17,7 +17,7 @@ add_executable(echomill_test
     test_matching.cpp
     test_instrumentmanager.cpp
     test_integration.cpp
-    # test_lib.cpp
+    test_lib.cpp
     test_server.cpp
 )
 
