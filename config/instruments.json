@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "symbol": "AAPL",
+    "tick_size": 0.01,
+    "lot_size": 1,
+    "price_scale": 10000,
+    "description": "Apple Inc."
+  },
+  {
+    "symbol": "GOOG",
+    "tick_size": 0.01,
+    "lot_size": 1,
+    "price_scale": 10000,
+    "description": "Alphabet Inc."
+  }
+]
