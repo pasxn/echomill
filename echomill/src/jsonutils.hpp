@@ -69,7 +69,7 @@ inline int64_t extractInt(const std::string& json, const std::string& key)
     auto dotPos = numStr.find('.');
     if (dotPos != std::string::npos) {
         // Simple heuristic: if it has a decimal, multiply by 100 to get cents?
-        // Wait, LOBSTER prices are x10000. Instruments might be x100 or x10000?
+        // Wait, standard prices might be x100 or x10000.
         // In instrumentmanager it was * 100. Let's replicate that behavior.
         double value = std::stod(numStr);
         return static_cast<int64_t>(value * 100);

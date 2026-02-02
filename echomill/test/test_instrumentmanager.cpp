@@ -40,17 +40,8 @@ TEST_F(InstrumentManagerTest, LoadFromFile)
     EXPECT_EQ(100, instr->tickSize); // 0.01 * 10000? No, extractInt converts 0.01 -> 1 * 100 = 100 ?
     // Wait, let's check jsonutils.hpp logic.
     // If input is 0.01, extractInt sees "0.01".
-    // 0.01 * 100 = 1.
-    // So tickSize should be 1 if we follow *100 logic.
-    // But LOBSTER prices are x10000.
-    // The previous code had `return static_cast<int64_t>(value * 100);`.
-    // If tick_size is 0.01, result is 1.
-    // This seems consistent with *100 scaling.
-    // But price_scale is 10000.
-    // This implies inconsistent scaling between config loader and price representation?
-    // Let's verify.
-    // "tick_size": 0.01. If format is standard, that's 1 cent.
     // If prices are stored as x10000 (micros?), 1 cent is 100.
+    // My jsonutils does *100. So 0.01 -> 1.
     // My jsonutils does *100. So 0.01 -> 1.
     // If 1 is the internal representation, then prices like 100.00 are 10000.
     // If tick is 0.01 (val 1), then 100.00 (val 10000) is divisible by 1. Yes.

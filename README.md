@@ -26,9 +26,9 @@ sudo apt-get install libgtest-dev
 
 See `docs/codingguidelines.md` for coding standards.
 
-## Building and Testing
-
-EchoMill uses CMake for its build system.
+## Building
+### E2E Testing
+EchoMill uses scenario-based testing to verify complex flows. See `docs/docs.md` for more details on the scenario framework.
 ### Build EchoMill (Engine & Tests)
 ```bash
 cmake -B echomill/build -S echomill && cmake --build echomill/build -j

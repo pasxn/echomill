@@ -16,7 +16,7 @@ enum class Side : uint8_t { Buy = 1, Sell = 2 };
 // Order type
 enum class OrderType : uint8_t { Limit = 1, Market = 2 };
 
-// Message type (from LOBSTER format)
+// Internal message codes
 enum class MessageType : uint8_t {
     Add = 1,
     CancelPartial = 2,
