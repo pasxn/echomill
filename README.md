@@ -20,6 +20,10 @@ Unlike generic order books, EchoMill is built for the network. It features a sta
 - `e2etest/`: Python automation for declarative JSON scenario tests.
 - `docs/`: Technical specifications and architectural deep-dives.
 
+## Dependencies
+- **Engine**: C++20 compiler (`g++-13`+), CMake, Google Test (for unit tests).
+- **Client/Test**: Python 3.9+, `requests` library.
+
 ## Quick Start
 
 ### 1. Build the Engine
@@ -45,12 +49,3 @@ python3 client/client.py --port 8080
 ```bash
 python3 e2etest/runner.py
 ```
-
-## Dependencies
-- **Engine**: C++20 compiler (`g++-13`+), CMake, Google Test (for unit tests).
-- **Client/Test**: Python 3.9+, `requests` library.
-
-## Documentation
-For a deep dive into the engineering behind EchoMill, refer to:
-- [System Architecture](docs/docs.md)
-- [Core Design & Types](docs/core_architecture.md)

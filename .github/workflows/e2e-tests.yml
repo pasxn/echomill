@@ -1,0 +1,31 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtest-dev cmake g++
+
+      - name: Build Server
+        run: |
+          cmake -B echomill/build -S echomill
+          cmake --build echomill/build -j $(nproc)
+
+      - name: Run E2E Test Runner
+        run: python3 e2etest/runner.py
