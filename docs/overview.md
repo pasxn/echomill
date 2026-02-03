@@ -85,7 +85,7 @@ The **order book** is the central data structure. It maintains two sorted lists:
 - **Bids** (buy orders): Sorted by price **descending** (highest price first).
 - **Asks** (sell orders): Sorted by price **ascending** (lowest price first).
 
-At each price, multiple orders may exist (different traders). They are queued in **FIFO order** (first-in, first-out)—this is **time priority**.
+At each price, multiple orders may exist (different traders). They are queued in **FIFO order** (first-in, first-out), this is **time priority**.
 
 ```
 ASKS (sell side)                         
@@ -114,7 +114,7 @@ Each match generates a **Trade** record.
 
 ### Price Discovery: How Trade Prices Are Determined
 
-In an order-driven market, there's no central authority setting prices. Instead, the **trade price is determined by the passive order** — the order that was already resting in the book.
+In an order-driven market, there's no central authority setting prices. Instead, the **trade price is determined by the passive order**, the order that was already resting in the book.
 
 **Example:**
 ```
@@ -138,7 +138,7 @@ Even though the buyer is willing to pay $10.55, the trade executes at **$10.50**
 **Why this matters:**
 - The "market price" you see quoted is simply the **best bid/ask** in the book.
 - Prices emerge naturally from supply and demand (the orders people submit).
-- No central pricing authority — pure price discovery.
+- No central pricing authority, pure price discovery.
 
 ---
 
@@ -183,7 +183,7 @@ All constants (tick sizes, buffer sizes, timeouts) are defined as named `constex
 
 ### Library-Level End-to-End Test (also in `echomill/test/`)
 - A "mini E2E": feed a series of orders directly into the `OrderBook` class, then verify the resulting depth and generated trades.
-- No network, no server process—just the core logic.
+- No network, no server process, just the core logic.
 
 ### Full End-to-End Test (in `e2etest/`)
 - Spawns the `echomill` server and runs automated scenario scripts.
@@ -300,83 +300,6 @@ Instruments (tradable symbols) are defined in `config/instruments.json`:
 - **price_scale**: Multiplier for fixed-point representation.
 
 The engine loads this file at startup to validate incoming orders.
-
----
-
-## Build System
-
-Each component has its own `CMakeLists.txt` and can be built independently:
-
-```bash
-./make.sh echomill    # Build the core engine
-./make.sh client      # Build the CLI tool
-./make.sh e2etest     # Build the E2E tester
-./make.sh all         # Build everything
-./make.sh clean       # Remove all build artifacts
-```
-
-No root-level `CMakeLists.txt` is used; the shell script orchestrates builds.
-
----
-
-## Directory Roles
-
-| Path | Purpose |
-|------|---------|
-| `echomill/src/` | Core engine source code (OrderBook, server, types). |
-| `echomill/test/` | Unit tests and mini library-level E2E tests. |
-| `client/src/` | CLI tool source code. |
-| `client/test/` | CLI component tests. |
-| `e2etest/scripts/` | Scenario testing scripts. |
-| `config/` | Shared configuration (instruments.json). |
-
----
-
-## Key Classes (Conceptual)
-
-```cpp
-// Core types
-struct Order {
-    OrderId id;
-    Side side;          // Buy or Sell
-    Price price;        // Fixed-point integer
-    Qty qty;            // Total quantity
-    Qty remaining;      // Quantity still open
-    Timestamp ts;       // Arrival time
-};
-
-struct Trade {
-    OrderId buyerId;
-    OrderId sellerId;
-    Price price;
-    Qty qty;
-    Timestamp ts;
-};
-
-// The order book
-class OrderBook {
-public:
-    std::vector<Trade> addOrder(Order order);   // Match and insert
-    bool cancelOrder(OrderId id);
-    std::optional<Price> bestBid() const;
-    std::optional<Price> bestAsk() const;
-    std::vector<BookLevel> depth(Side side, size_t levels) const;
-};
-
-// Server (wraps OrderBook, listens on HTTP)
-class Server {
-public:
-    void run(uint16_t port);
-    // Endpoints: /orders, /depth, /trades, /status
-};
-
-// Instrument manager
-class InstrumentManager {
-public:
-    void loadFromFile(const std::string& path);
-    const Instrument* find(const std::string& symbol) const;
-};
-```
 
 ---
 

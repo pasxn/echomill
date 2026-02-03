@@ -45,6 +45,16 @@ enum class OrderType : uint8_t {
     Market = 2
 };
 
+// Internal message codes
+enum class MessageType : uint8_t {
+    Add = 1,
+    CancelPartial = 2,
+    Delete = 3,
+    ExecuteVisible = 4,
+    ExecuteHidden = 5,
+    Halt = 7
+};
+
 } // namespace echomill
 ```
 
@@ -130,9 +140,6 @@ struct BookLevel {
 
 ---
 
-## Class Hierarchy
-
-```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         echomill/src/                           │
 ├─────────────────────────────────────────────────────────────────┤
@@ -151,26 +158,25 @@ struct BookLevel {
 │                             │                                   │
 │                             ▼                                   │
 │                    ┌─────────────────┐                          │
-│                    │   OrderBook     │  ◄── Core matching engine│
+│                    │   OrderBook     │  ◄── Matching engine     │
 │                    │   (.hpp/.cpp)   │                          │
 │                    └────────┬────────┘                          │
-│                             │                                   │
+│                             │ (1 per instrument)                │
 │         ┌───────────────────┼───────────────────┐               │
 │         ▼                   ▼                   ▼               │
 │  ┌─────────────┐   ┌─────────────────┐   ┌─────────────┐        │
 │  │ Instrument  │   │  TradeReporter  │   │  OrderIdGen │        │
 │  │  Manager    │   │   (callback)    │   │ (optional)  │        │
-│  └─────────────┘   └─────────────────┘   └─────────────┘        │
-│                                                                 │
-│                             │                                   │
-│                             ▼                                   │
+│  └──────┬──────┘   └─────────────────┘   └─────────────┘        │
+│         │                                                       │
+│         └───────────┐       │                                   │
+│                     ▼       ▼                                   │
 │                    ┌─────────────────┐                          │
-│                    │     Server      │  ◄── HTTP layer          │
-│                    │   (.hpp/.cpp)   │      (wraps OrderBook)   │
+│                    │     Server      │  ◄── Berkeley Sockets    │
+│                    │   (.hpp/.cpp)   │      (TCP/HTTP router)   │
 │                    └─────────────────┘                          │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
-```
 
 ---
 
@@ -202,6 +208,9 @@ public:
 
     // Remove specific order by ID
     bool removeOrder(OrderId id);
+
+    // Reduce quantity of specific order (for cancel partial)
+    bool reduceOrder(OrderId id, Qty reduceBy);
 
     // Match against this level (returns trades, modifies orders)
     // Fills orders front-to-back (FIFO)
@@ -306,32 +315,74 @@ private:
 
 ### Matching Algorithm
 
+The matching process is triggered when a new order is added to the book.
+
 ```
+canMatch(order):
+    if order.type == Market:
+        return opposite side of book is not empty
+    if order is Buy:
+        return order.price >= bestAsk()
+    return order.price <= bestBid()
+
 addOrder(order):
-    1. If order crosses the book (can match immediately):
+    1. If canMatch(order) returns true:
        - Call matchOrder(order) → generates trades
-    2. If order has remaining quantity and is a limit order:
-       - Insert into appropriate side as passive order
+       - For each trade in trades:
+         - Execute m_tradeCallback(trade) if set
+    2. If order still has remaining quantity AND is a Limit order:
+       - Call insertOrder(order)
     3. Return all generated trades
+
+insertOrder(order):
+    1. If order.id already exists in m_orderIndex:
+       - Call cancelOrder(order.id) to protect against ID reuse
+    2. Add {order.side, order.price} to m_orderIndex
+    3. Find or create PriceLevel for order.price
+    4. Call PriceLevel::addOrder(order)
 
 matchOrder(order):
     trades = []
+    execTime = now()
     oppositeBook = (order.side == Buy) ? m_asks : m_bids
 
     while order.remaining > 0 AND oppositeBook not empty:
         bestLevel = oppositeBook.front()
 
-        // Check if price is acceptable
-        if order is limit AND doesn't cross bestLevel.price:
-            break  // No more matches possible
+        // Check if price is acceptable for limit orders
+        if order is Limit AND price does not cross bestLevel.price:
+            break
 
         // Match against this level
-        levelTrades = bestLevel.match(order, now())
+        levelTrades = bestLevel.match(order, execTime)
         trades.append(levelTrades)
+
+        // Post-match index cleanup for filled maker orders
+        for trade in levelTrades:
+            // Explicitly search level to see if maker order still has quantity
+            makerOrder = bestLevel.findOrder(trade.makerOrderId)
+            if makerOrder is null OR makerOrder.isFilled():
+                remove trade.makerOrderId from m_orderIndex
 
         if bestLevel.empty():
             remove bestLevel from oppositeBook
 
+    return trades
+
+PriceLevel::match(aggressiveOrder, execTime):
+    trades = []
+    while m_orders not empty AND aggressiveOrder.remaining > 0:
+        passiveOrder = m_orders.front()
+        fillQty = min(aggressiveOrder.remaining, passiveOrder.remaining)
+        
+        // Create trade, update quantities
+        generate Trade(aggressiveOrder.id, passiveOrder.id, ...)
+        aggressiveOrder.fill(fillQty)
+        passiveOrder.fill(fillQty)
+        
+        if passiveOrder.isFilled():
+            m_orders.pop_front()
+            
     return trades
 ```
 
@@ -396,6 +447,15 @@ public:
     // Lookup by symbol
     [[nodiscard]] const Instrument* find(const std::string& symbol) const;
 
+    // Add instrument manually (for testing)
+    void addInstrument(Instrument instrument);
+
+    // Clear all instruments
+    void clear();
+
+    // Get instrument count
+    [[nodiscard]] size_t count() const { return m_instruments.size(); }
+
     // Get all symbols
     [[nodiscard]] std::vector<std::string> allSymbols() const;
 
@@ -410,40 +470,50 @@ private:
 
 ## Server Class (Networking Layer)
 
-Wraps the OrderBook and exposes HTTP endpoints. This is the **only** class with external dependencies (HTTP library).
+Wraps any number of `OrderBook` instances (one per symbol). It implements a minimal HTTP/1.1 layer using raw Berkeley sockets. This implementation has **zero external networking dependencies**.
 
 ```cpp
 // server.hpp
 #pragma once
 
-#include "orderbook.hpp"
 #include "instrumentmanager.hpp"
+#include "orderbook.hpp"
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 
 namespace echomill {
 
 class Server {
 public:
-    Server(OrderBook& book, const InstrumentManager& instruments);
+    Server(const InstrumentManager& instruments);
 
-    // Start listening on port
+    // Start listening on port (blocking)
     void run(uint16_t port);
 
     // Stop server gracefully
     void stop();
 
+protected:
+    // Handle individual client connection
+    void handleClient(int clientSocket);
+
 private:
     // HTTP handlers
     std::string handleAddOrder(const std::string& body);
     std::string handleCancelOrder(const std::string& body);
-    std::string handleGetDepth(int levels);
+    std::string handleGetDepth(const std::string& queryString);
     std::string handleGetTrades();
     std::string handleStatus();
 
-    OrderBook& m_book;
+    // Helpers
+    std::string createResponse(int statusCode, const std::string& body);
+    std::string getQueryParam(const std::string& query, const std::string& key);
+
     const InstrumentManager& m_instruments;
-    bool m_running;
+    std::unordered_map<std::string, OrderBook> m_books; // One book per symbol
+    volatile bool m_running;
+    int m_serverSocket;
 };
 
 } // namespace echomill
@@ -466,12 +536,13 @@ echomill/
 │   ├── pricelevel.cpp
 │   ├── orderbook.hpp           # OrderBook class (core matching engine)
 │   ├── orderbook.cpp
+│   ├── jsonutils.hpp           # Minimal JSON parsing logic (no dependencies)
 │   ├── instrument.hpp          # Instrument struct
 │   ├── instrumentmanager.hpp   # InstrumentManager class
 │   ├── instrumentmanager.cpp
-│   ├── server.hpp              # HTTP server wrapper
+│   ├── server.hpp              # Raw socket HTTP server
 │   ├── server.cpp
-│   └── main.cpp                # Entry point (loads config, starts server)
+│   └── main.cpp                # App entry point (signal handling, config load)
 └── test/
     ├── CMakeLists.txt
     ├── test_pricelevel.cpp     # Unit tests for PriceLevel
@@ -505,7 +576,7 @@ echomill/
                               ▼
                     ┌────────────────────┐
                     │     OrderBook      │
-                    │   addOrder(...)    │
+                    │   (lookup symbol)  │
                     └─────────┬──────────┘
                               │
             ┌─────────────────┼─────────────────┐
@@ -577,7 +648,7 @@ The initial implementation is **single-threaded**. If concurrency is added later
 | `PriceLevel` | FIFO queue at one price |
 | `OrderBook` | Matching engine core |
 | `Instrument` | Tradable symbol metadata |
-| `InstrumentManager` | Config loader |
-| `Server` | HTTP wrapper (only external dependency) |
+| `InstrumentManager` | Config loader and symbol validation |
+| `Server` | Raw socket TCP server implementing minimal HTTP route |
 
 This architecture isolates the matching engine from all I/O, making it easy to unit test, benchmark, and later optimize without touching networking code.
