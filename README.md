@@ -1,6 +1,6 @@
 # EchoMill
 
-EchoMill is a high-performance, from-scratch matching engine designed for multi-instrument trading. It implements core financial exchange principles—price-time priority, FIFO matching, and fixed-point precision—within a clean, modular C++ architecture.
+EchoMill is a high-performance, from-scratch matching engine designed for multi-instrument trading. It implements core financial exchange principles price-time priority, FIFO matching, and fixed-point precision within a clean, modular C++ architecture.
 
 ## Overview
 
