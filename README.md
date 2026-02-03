@@ -4,7 +4,7 @@
 
 EchoMill is a high-performance, from-scratch matching engine designed for multi-instrument trading. It implements core financial exchange principles price-time priority, FIFO matching, and fixed-point precision within a clean, modular C++ architecture.
 
-### Overview
+## Overview
 
 Unlike generic order books, EchoMill is built for the network. It features a standalone C++ engine that exposes a RESTful API, accompanied by a rich Python client and a comprehensive scenario-driven testing suite.
 
@@ -15,17 +15,17 @@ Unlike generic order books, EchoMill is built for the network. It features a sta
 - **RESTful API**: Native HTTP/JSON interface for orders, depth, and status.
 - **Scenario Testing**: 15+ advanced E2E scenarios covering market sweeps, isolation, and robustness.
 
-### System Components
+## System Components
 
 - `echomill/`: C++ matching engine and HTTP server.
 - `client/`: Interactive Python CLI for trading and book inspection.
 - `e2etest/`: Python automation for declarative JSON scenario tests.
 
-### Dependencies
+## Dependencies
 - **Engine**: C++20 compiler (`g++-13`+), CMake, Google Test (for unit tests).
 - **Client/Test**: Python 3.9+, `requests` library.
 
-### Quick Start
+## Quick Start
 
 #### Install dependencies (for testing if required)
 ```bash
@@ -61,6 +61,6 @@ python3 client/client.py --port 8080
 ```bash
 python3 e2etest/runner.py
 ```
-### License
+## License
 
 [MIT](LICENSE)
