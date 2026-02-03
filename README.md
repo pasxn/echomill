@@ -38,26 +38,26 @@ sudo make
 sudo make install # Installs libraries to /usr/local/lib
 ```
 
-#### Build the Engine
+#### Build the engine
 ```bash
 # Build core engine and tests
 cmake -B echomill/build -S echomill && cmake --build echomill/build -j
 ```
 
-#### Run the Server
+#### Run the server
 The server requires a port and a configuration path.
 ```bash
 ./echomill/build/src/echomill_server 8080 config/instruments.json
 ```
 
-#### Start the Interactive Client
+#### Start the interactive client
 ```bash
 # Enter the interactive REPL
 python3 client/client.py --port 8080
 ```
 *In the client shell, type `help` to see commands.*
 
-#### Run Automated E2E Tests
+#### Run automated E2E tests
 ```bash
 python3 e2etest/runner.py
 ```
