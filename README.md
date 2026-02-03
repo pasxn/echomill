@@ -31,11 +31,6 @@ Unlike generic order books, EchoMill is built for the network. It features a sta
 ```bash
 sudo apt update
 sudo apt install libgtest-dev cmake
-# The above only installs source. You still need to build the libraries:
-cd /usr/src/gtest
-sudo cmake .
-sudo make
-sudo make install # Installs libraries to /usr/local/lib
 ```
 
 #### Build the engine
