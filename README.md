@@ -23,7 +23,7 @@ Unlike generic order books, EchoMill is built for the network. It features a sta
 
 ## Dependencies
 - **Engine**: C++20 compiler (`g++-13`+), CMake, Google Test (for unit tests).
-- **Client/Test**: Python 3.9+, `requests` library.
+- **Client/Test**: Python 3.9+, `requests` package.
 
 ## Quick Start
 
