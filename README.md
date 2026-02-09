@@ -22,8 +22,8 @@ Unlike generic order books, EchoMill is built for the network. It features a sta
 - `e2etest/`: Python automation for declarative JSON scenario tests.
 
 ## Dependencies
-- **Engine**: C++20 compiler (`g++-13`+), CMake, Google Test (for unit tests).
-- **Client/Test**: Python 3.9+, `requests` package.
+- **Engine**: C++20 compiler (`g++-13`+), CMake, and Google Test (for unit tests).
+- **Client/Test**: Python 3.9+, and `requests` package.
 
 ## Quick Start
 
