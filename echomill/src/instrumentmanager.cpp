@@ -59,13 +59,13 @@ void InstrumentManager::addInstrument(Instrument instrument)
     m_instruments[instrument.symbol] = std::move(instrument);
 }
 
-const Instrument* InstrumentManager::find(const std::string& symbol) const
+const Instrument& InstrumentManager::find(const std::string& symbol) const
 {
     auto iterator = m_instruments.find(symbol);
     if (iterator == m_instruments.end()) {
-        return nullptr;
+        throw std::runtime_error("Instrument not found: " + symbol);
     }
-    return &iterator->second;
+    return iterator->second;
 }
 
 std::vector<std::string> InstrumentManager::allSymbols() const

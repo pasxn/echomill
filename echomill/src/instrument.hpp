@@ -14,10 +14,10 @@ struct Instrument {
     int priceScale;          // Multiplier for fixed-point (10000)
 
     // Validate price is on tick
-    [[nodiscard]] bool isValidPrice(Price price) const { return price % tickSize == 0; }
+    [[nodiscard]] bool isValidPrice(Price price) const { return (price % tickSize) == 0; }
 
     // Validate quantity is on lot
-    [[nodiscard]] bool isValidQty(Qty qty) const { return qty % lotSize == 0; }
+    [[nodiscard]] bool isValidQty(Qty qty) const { return (qty % lotSize) == 0; }
 };
 
 } // namespace echomill

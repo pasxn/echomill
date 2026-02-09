@@ -45,6 +45,11 @@ The server requires a port and a configuration path.
 ./echomill/build/src/echomill_server 8080 config/instruments.json
 ```
 
+#### Run unit tests
+```bash
+./echomill/build/test/echomill_test
+```
+
 #### Start the interactive client
 ```bash
 # Enter the interactive REPL

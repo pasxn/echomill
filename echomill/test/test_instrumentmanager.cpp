@@ -33,11 +33,10 @@ TEST_F(InstrumentManagerTest, LoadFromFile)
     manager.loadFromFile("test_instruments.json");
     EXPECT_EQ(1, manager.count());
 
-    auto instr = manager.find("TEST");
-    ASSERT_NE(nullptr, instr);
-    EXPECT_EQ("TEST", instr->symbol);
-    EXPECT_EQ(10, instr->lotSize);
-    EXPECT_EQ(100, instr->tickSize); // 0.01 * 10000? No, extractInt converts 0.01 -> 1 * 100 = 100 ?
+    const auto& instr = manager.find("TEST");
+    EXPECT_EQ("TEST", instr.symbol);
+    EXPECT_EQ(10, instr.lotSize);
+    EXPECT_EQ(100, instr.tickSize);
     // Wait, let's check jsonutils.hpp logic.
     // If input is 0.01, extractInt sees "0.01".
     // If prices are stored as x10000 (micros?), 1 cent is 100.
@@ -51,10 +50,10 @@ TEST_F(InstrumentManagerTest, LoadFromFile)
     // However, for this test, I just check consistency with the current implementation.
     // I will expect 1 for now based on code reading.
 
-    EXPECT_EQ(100, instr->tickSize);
+    EXPECT_EQ(100, instr.tickSize);
 }
 
-TEST_F(InstrumentManagerTest, FindUnknown) { EXPECT_EQ(nullptr, manager.find("UNKNOWN")); }
+TEST_F(InstrumentManagerTest, FindUnknown) { EXPECT_THROW((void)manager.find("UNKNOWN"), std::runtime_error); }
 
 TEST_F(InstrumentManagerTest, AllSymbols)
 {

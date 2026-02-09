@@ -17,7 +17,7 @@
             },
             "expect_status": 400,
             "expect_body": {
-                "error": "Unknown symbol"
+                "error": "Unknown symbol: NOTEXIST"
             }
         },
         {

@@ -169,9 +169,13 @@ void Server::handleClient(int clientSocket)
 std::string Server::handleAddOrder(const std::string& body)
 {
     std::string symbol = extractString(body, "symbol");
-    const Instrument* instr = m_instruments.find(symbol);
-    if (!instr) {
-        return createResponse(400, "{\"error\": \"Unknown symbol\"}");
+    try {
+        const Instrument& instr = m_instruments.find(symbol);
+        // instr is used implicitly or potentially explicitly in a full implementation.
+        // For now, we just ensure it exists.
+        (void)instr;
+    } catch (const std::exception& e) {
+        return createResponse(400, "{\"error\": \"Unknown symbol: " + symbol + "\"}");
     }
 
     Order order{};
