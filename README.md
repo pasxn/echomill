@@ -27,7 +27,7 @@ Unlike generic order books, EchoMill is built for the network. It features a sta
 
 ## Quick Start
 
-#### Install dependencies (for testing if required)
+#### Install dependencies (for testing if required) bb
 ```bash
 sudo apt update
 sudo apt install libgtest-dev cmake
