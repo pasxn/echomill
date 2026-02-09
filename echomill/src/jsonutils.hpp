@@ -11,6 +11,23 @@ namespace echomill::json {
 // Simple JSON value extraction (no external dependencies)
 // This is intentionally minimal - handles only simple key-value pairs
 
+inline std::string extractString(const std::string& json, const std::string& key);
+inline int64_t extractInt(const std::string& json, const std::string& key);
+inline int64_t extractFixedPoint(const std::string& json, const std::string& key, int multiplier);
+
+struct JsonObject {
+    std::string rawJson;
+
+    [[nodiscard]] std::string getString(const std::string& key) const { return extractString(rawJson, key); }
+
+    [[nodiscard]] int64_t getInt(const std::string& key) const { return extractInt(rawJson, key); }
+
+    [[nodiscard]] int64_t getFixedPoint(const std::string& key, int multiplier) const
+    {
+        return extractFixedPoint(rawJson, key, multiplier);
+    }
+};
+
 inline std::string extractString(const std::string& json, const std::string& key)
 {
     std::string searchKey = "\"" + key + "\"";
@@ -44,12 +61,10 @@ inline int64_t extractInt(const std::string& json, const std::string& key)
     if (colonPos == std::string::npos)
         return 0;
 
-    // Skip whitespace after colon
     auto valueStart = colonPos + 1;
     while (valueStart < json.size() && std::isspace(json[valueStart]))
         ++valueStart;
 
-    // Parse number
     std::string numStr;
     while (valueStart < json.size() &&
            (std::isdigit(json[valueStart]) || json[valueStart] == '.' || json[valueStart] == '-')) {
@@ -60,17 +75,8 @@ inline int64_t extractInt(const std::string& json, const std::string& key)
     if (numStr.empty())
         return 0;
 
-    // Handle decimal values by converting to fixed-point (assumes x100 or x10000 based on context, but here we do x100)
-    // Actually, for generic use, let's return raw int or provide a float version.
-    // But since our specific use case (prices) needs scaling, we should be careful.
-    // The previous implementation in instrumentmanager.cpp handled decimals by * 100.
-    // Let's keep it consistent: treat '.' as a separator we might need to handle.
-
     auto dotPos = numStr.find('.');
     if (dotPos != std::string::npos) {
-        // Simple heuristic: if it has a decimal, multiply by 100 to get cents?
-        // Wait, standard prices might be x100 or x10000.
-        // In instrumentmanager it was * 100. Let's replicate that behavior.
         double value = std::stod(numStr);
         return static_cast<int64_t>(value * 100);
     }
@@ -78,7 +84,6 @@ inline int64_t extractInt(const std::string& json, const std::string& key)
     return std::stoll(numStr);
 }
 
-// Extract a value using a custom multiplier for fixed point conversion
 inline int64_t extractFixedPoint(const std::string& json, const std::string& key, int multiplier)
 {
     std::string searchKey = "\"" + key + "\"";
@@ -105,6 +110,27 @@ inline int64_t extractFixedPoint(const std::string& json, const std::string& key
         return 0;
 
     return static_cast<int64_t>(std::stod(numStr) * multiplier);
+}
+
+inline std::vector<JsonObject> parseArray(const std::string& json)
+{
+    std::vector<JsonObject> objects;
+    size_t pos = 0;
+    while (pos < json.size()) {
+        auto objectStart = json.find('{', pos);
+        if (objectStart == std::string::npos) {
+            break;
+        }
+
+        auto objectEnd = json.find('}', objectStart);
+        if (objectEnd == std::string::npos) {
+            break;
+        }
+
+        objects.push_back({json.substr(objectStart, objectEnd - objectStart + 1)});
+        pos = objectEnd + 1;
+    }
+    return objects;
 }
 
 } // namespace echomill::json
