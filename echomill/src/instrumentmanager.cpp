@@ -18,39 +18,23 @@ void InstrumentManager::loadFromFile(const std::string& path)
 
     std::stringstream buffer;
     buffer << file.rdbuf();
-    std::string json = buffer.str();
+    std::string jsonStr = buffer.str();
 
     // Parse array of instrument objects
-    // Find each { ... } block
-    size_t pos = 0;
-    while (pos < json.size()) {
-        auto objectStart = json.find('{', pos);
-        if (objectStart == std::string::npos) {
-            break;
-        }
-
-        auto objectEnd = json.find('}', objectStart);
-        if (objectEnd == std::string::npos) {
-            break;
-        }
-
-        std::string objectJson = json.substr(objectStart, objectEnd - objectStart + 1);
-
+    for (const auto& obj : json::parseArray(jsonStr)) {
         Instrument instrument{};
-        instrument.symbol = extractString(objectJson, "symbol");
-        instrument.description = extractString(objectJson, "description");
+        instrument.symbol = obj.getString("symbol");
+        instrument.description = obj.getString("description");
 
         // Use 10000 scaling for tick_size to match price_scale (0.01 -> 100)
-        instrument.tickSize = extractFixedPoint(objectJson, "tick_size", 10000);
+        instrument.tickSize = obj.getFixedPoint("tick_size", 10000);
 
-        instrument.lotSize = static_cast<Qty>(extractInt(objectJson, "lot_size"));
-        instrument.priceScale = static_cast<int>(extractInt(objectJson, "price_scale"));
+        instrument.lotSize = static_cast<Qty>(obj.getInt("lot_size"));
+        instrument.priceScale = static_cast<int>(obj.getInt("price_scale"));
 
         if (!instrument.symbol.empty()) {
             m_instruments[instrument.symbol] = std::move(instrument);
         }
-
-        pos = objectEnd + 1;
     }
 }
 
@@ -59,13 +43,13 @@ void InstrumentManager::addInstrument(Instrument instrument)
     m_instruments[instrument.symbol] = std::move(instrument);
 }
 
-const Instrument* InstrumentManager::find(const std::string& symbol) const
+const Instrument& InstrumentManager::find(const std::string& symbol) const
 {
     auto iterator = m_instruments.find(symbol);
     if (iterator == m_instruments.end()) {
-        return nullptr;
+        throw std::runtime_error("Instrument not found: " + symbol);
     }
-    return &iterator->second;
+    return iterator->second;
 }
 
 std::vector<std::string> InstrumentManager::allSymbols() const

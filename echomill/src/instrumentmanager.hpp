@@ -17,7 +17,7 @@ public:
     void addInstrument(Instrument instrument);
 
     // Lookup by symbol
-    [[nodiscard]] const Instrument* find(const std::string& symbol) const;
+    [[nodiscard]] const Instrument& find(const std::string& symbol) const;
 
     // Get all symbols
     [[nodiscard]] std::vector<std::string> allSymbols() const;

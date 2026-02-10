@@ -5,12 +5,13 @@
 #include <atomic>
 #include <csignal>
 #include <iostream>
+#include <memory>
 #include <string>
 
 using namespace echomill;
 
 // Global pointer for signal handler
-Server* g_server = nullptr;
+std::unique_ptr<Server> g_server;
 
 void signalHandler(int signum)
 {
@@ -42,8 +43,7 @@ int main(int argc, char* argv[])
             std::cout << " - " << sym << std::endl;
         }
 
-        Server server(instruments);
-        g_server = &server;
+        g_server = std::make_unique<Server>(instruments);
 
         // Setup signal handling
         signal(SIGINT, signalHandler);
@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 
         // Run server (blocking)
         std::cout << "Starting server on port " << port << "..." << std::endl;
-        server.run(port);
+        g_server->run(port);
 
         std::cout << "Server stopped." << std::endl;
         return 0;
