@@ -127,12 +127,12 @@ void Server::handleClient(int clientSocket)
     auto doubleCRLF = request.find("\r\n\r\n");
     std::string body = request.substr(doubleCRLF + 4);
 
-    // RESTORED: Parse Request Line (e.g., "POST /orders HTTP/1.1")
+    // Parse Request Line (e.g., "POST /orders HTTP/1.1")
     std::istringstream stream(request);
     std::string method, path, protocol;
     stream >> method >> path >> protocol;
 
-    // RESTORED: Separate Query String
+    // Separate Query String
     std::string queryString;
     auto quesPos = path.find('?');
     if (quesPos != std::string::npos) {
