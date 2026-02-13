@@ -23,8 +23,7 @@ class E2ETestRunner:
             return s.getsockname()[1]
 
     def start_server(self):
-        # We need a new free port each time we start if we want to be safe,
-        # but for simplicity let's stick to the one we found initially or refresh it.
+        # need a new free port each time we start if we want to be safe
         self.port = self._find_free_port()
         self.base_url = f"http://localhost:{self.port}"
         
@@ -80,7 +79,7 @@ class E2ETestRunner:
         elif isinstance(expected, list):
             if not isinstance(actual, list):
                 return False
-            # For simplicity, we assume lists are ordered correctly or we match element-wise
+            # For simplicity, it is assumed that lists are ordered correctly or we match element-wise
             if len(expected) != len(actual):
                 return False
             for e, a in zip(expected, actual):

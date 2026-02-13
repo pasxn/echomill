@@ -37,19 +37,6 @@ TEST_F(InstrumentManagerTest, LoadFromFile)
     EXPECT_EQ("TEST", instr.symbol);
     EXPECT_EQ(10, instr.lotSize);
     EXPECT_EQ(100, instr.tickSize);
-    // Wait, let's check jsonutils.hpp logic.
-    // If input is 0.01, extractInt sees "0.01".
-    // If prices are stored as x10000 (micros?), 1 cent is 100.
-    // My jsonutils does *100. So 0.01 -> 1.
-    // My jsonutils does *100. So 0.01 -> 1.
-    // If 1 is the internal representation, then prices like 100.00 are 10000.
-    // If tick is 0.01 (val 1), then 100.00 (val 10000) is divisible by 1. Yes.
-    // But if we wanted tick size to be represented in the same scale as price,
-    // and price scale is 10000, then 0.01 should start as 100.
-    // The current jsonutils logic multiplies by 100. This might be a bug if we want x10000.
-    // However, for this test, I just check consistency with the current implementation.
-    // I will expect 1 for now based on code reading.
-
     EXPECT_EQ(100, instr.tickSize);
 }
 

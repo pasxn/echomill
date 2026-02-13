@@ -299,8 +299,6 @@ std::vector<Trade> OrderBook::matchOrder(Order& order)
 
 void OrderBook::insertOrder(const Order& order)
 {
-    // Fix: If ID already exists, we must remove the old instance first to avoid index corruption.
-    // This handles cases where a feed might reuse an ID or a test is poorly formed.
     if (m_orderIndex.count(order.id)) {
         cancelOrder(order.id);
     }
