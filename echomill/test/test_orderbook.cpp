@@ -41,7 +41,7 @@ TEST_F(OrderBookTest, ModifyOrder)
     // Reduce quantity (10 -> 4)
     bool modified = book.modifyOrder(1, 4);
     EXPECT_TRUE(modified);
-    EXPECT_EQ(4, book.findOrder(1)->remaining);
+    EXPECT_EQ(4, book.findOrder(1).remaining);
     EXPECT_EQ(10000, book.bestBid().value());
 
     // Increase quantity (not allowed)
@@ -51,6 +51,9 @@ TEST_F(OrderBookTest, ModifyOrder)
     modified = book.modifyOrder(1, 0);
     EXPECT_TRUE(modified);
     EXPECT_EQ(0, book.orderCount());
+
+    // Test non-existent order throws
+    EXPECT_THROW((void)book.findOrder(999), std::out_of_range);
 }
 
 TEST_F(OrderBookTest, BestBidAskSpread)

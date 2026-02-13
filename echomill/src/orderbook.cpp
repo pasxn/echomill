@@ -1,6 +1,8 @@
 #include "orderbook.hpp"
 
 #include <chrono>
+#include <stdexcept>
+#include <string>
 
 namespace echomill {
 
@@ -171,11 +173,11 @@ std::vector<BookLevel> OrderBook::askDepth(size_t levels) const
     return result;
 }
 
-const Order* OrderBook::findOrder(OrderId id) const
+const Order& OrderBook::findOrder(OrderId id) const
 {
     auto indexIterator = m_orderIndex.find(id);
     if (indexIterator == m_orderIndex.end()) {
-        return nullptr;
+        throw std::out_of_range("Order not found: " + std::to_string(id));
     }
 
     auto [side, price] = indexIterator->second;
@@ -185,7 +187,7 @@ const Order* OrderBook::findOrder(OrderId id) const
         if (levelIterator != m_bids.end()) {
             for (const auto& order : levelIterator->second) {
                 if (order.id == id) {
-                    return &order;
+                    return order;
                 }
             }
         }
@@ -194,13 +196,13 @@ const Order* OrderBook::findOrder(OrderId id) const
         if (levelIterator != m_asks.end()) {
             for (const auto& order : levelIterator->second) {
                 if (order.id == id) {
-                    return &order;
+                    return order;
                 }
             }
         }
     }
 
-    return nullptr;
+    throw std::out_of_range("Order index is inconsistent for ID: " + std::to_string(id));
 }
 
 bool OrderBook::canMatch(const Order& order) const
@@ -248,14 +250,10 @@ std::vector<Trade> OrderBook::matchOrder(Order& order)
 
             // Remove filled orders from index
             for (const auto& trade : trades) {
-                const Order* makerOrder = nullptr;
-                for (const auto& levelOrder : askIterator->second) {
-                    if (levelOrder.id == trade.makerOrderId) {
-                        makerOrder = &levelOrder;
-                        break;
-                    }
-                }
-                if (makerOrder == nullptr || makerOrder->isFilled()) {
+                auto it = std::find_if(askIterator->second.begin(), askIterator->second.end(),
+                                       [&trade](const Order& o) { return o.id == trade.makerOrderId; });
+
+                if (it == askIterator->second.end() || it->isFilled()) {
                     m_orderIndex.erase(trade.makerOrderId);
                 }
             }
@@ -281,14 +279,10 @@ std::vector<Trade> OrderBook::matchOrder(Order& order)
 
             // Remove filled orders from index
             for (const auto& trade : trades) {
-                const Order* makerOrder = nullptr;
-                for (const auto& levelOrder : bidIterator->second) {
-                    if (levelOrder.id == trade.makerOrderId) {
-                        makerOrder = &levelOrder;
-                        break;
-                    }
-                }
-                if (makerOrder == nullptr || makerOrder->isFilled()) {
+                auto it = std::find_if(bidIterator->second.begin(), bidIterator->second.end(),
+                                       [&trade](const Order& o) { return o.id == trade.makerOrderId; });
+
+                if (it == bidIterator->second.end() || it->isFilled()) {
                     m_orderIndex.erase(trade.makerOrderId);
                 }
             }
@@ -305,8 +299,6 @@ std::vector<Trade> OrderBook::matchOrder(Order& order)
 
 void OrderBook::insertOrder(const Order& order)
 {
-    // Fix: If ID already exists, we must remove the old instance first to avoid index corruption.
-    // This handles cases where a feed might reuse an ID or a test is poorly formed.
     if (m_orderIndex.count(order.id)) {
         cancelOrder(order.id);
     }

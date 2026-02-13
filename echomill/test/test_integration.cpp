@@ -55,7 +55,7 @@ TEST_F(IntegrationTest, FullTradingSession)
     // Should fill 100 @ 150.00 (clearing sell1)
     // Remaining 20 should post @ 150.00? No, limit was 150.00, so it matches.
     // If it matches partial, remainder stays at limit price.
-    // Wait, logic: match order. If remainder > 0 and limit, insert.
+    // logic: match order. If remainder > 0 and limit, insert.
     // Price 150.00.
     // Matches sell1 (150.00). Fill 100.
     // Remainder 20. Next ask is 150.05. 150.00 < 150.05. No match.
