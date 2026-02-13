@@ -250,14 +250,10 @@ std::vector<Trade> OrderBook::matchOrder(Order& order)
 
             // Remove filled orders from index
             for (const auto& trade : trades) {
-                const Order* makerOrder = nullptr;
-                for (const auto& levelOrder : askIterator->second) {
-                    if (levelOrder.id == trade.makerOrderId) {
-                        makerOrder = &levelOrder;
-                        break;
-                    }
-                }
-                if (makerOrder == nullptr || makerOrder->isFilled()) {
+                auto it = std::find_if(askIterator->second.begin(), askIterator->second.end(),
+                                       [&trade](const Order& o) { return o.id == trade.makerOrderId; });
+
+                if (it == askIterator->second.end() || it->isFilled()) {
                     m_orderIndex.erase(trade.makerOrderId);
                 }
             }
@@ -283,14 +279,10 @@ std::vector<Trade> OrderBook::matchOrder(Order& order)
 
             // Remove filled orders from index
             for (const auto& trade : trades) {
-                const Order* makerOrder = nullptr;
-                for (const auto& levelOrder : bidIterator->second) {
-                    if (levelOrder.id == trade.makerOrderId) {
-                        makerOrder = &levelOrder;
-                        break;
-                    }
-                }
-                if (makerOrder == nullptr || makerOrder->isFilled()) {
+                auto it = std::find_if(bidIterator->second.begin(), bidIterator->second.end(),
+                                       [&trade](const Order& o) { return o.id == trade.makerOrderId; });
+
+                if (it == bidIterator->second.end() || it->isFilled()) {
                     m_orderIndex.erase(trade.makerOrderId);
                 }
             }
