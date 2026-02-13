@@ -38,7 +38,7 @@ public:
     [[nodiscard]] std::vector<BookLevel> askDepth(size_t levels) const;
 
     // Order lookup
-    [[nodiscard]] const Order* findOrder(OrderId id) const;
+    [[nodiscard]] const Order& findOrder(OrderId id) const;
 
     // Statistics
     [[nodiscard]] size_t bidLevelCount() const { return m_bids.size(); }

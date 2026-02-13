@@ -1,6 +1,8 @@
 #include "orderbook.hpp"
 
 #include <chrono>
+#include <stdexcept>
+#include <string>
 
 namespace echomill {
 
@@ -171,11 +173,11 @@ std::vector<BookLevel> OrderBook::askDepth(size_t levels) const
     return result;
 }
 
-const Order* OrderBook::findOrder(OrderId id) const
+const Order& OrderBook::findOrder(OrderId id) const
 {
     auto indexIterator = m_orderIndex.find(id);
     if (indexIterator == m_orderIndex.end()) {
-        return nullptr;
+        throw std::out_of_range("Order not found: " + std::to_string(id));
     }
 
     auto [side, price] = indexIterator->second;
@@ -185,7 +187,7 @@ const Order* OrderBook::findOrder(OrderId id) const
         if (levelIterator != m_bids.end()) {
             for (const auto& order : levelIterator->second) {
                 if (order.id == id) {
-                    return &order;
+                    return order;
                 }
             }
         }
@@ -194,13 +196,13 @@ const Order* OrderBook::findOrder(OrderId id) const
         if (levelIterator != m_asks.end()) {
             for (const auto& order : levelIterator->second) {
                 if (order.id == id) {
-                    return &order;
+                    return order;
                 }
             }
         }
     }
 
-    return nullptr;
+    throw std::out_of_range("Order index is inconsistent for ID: " + std::to_string(id));
 }
 
 bool OrderBook::canMatch(const Order& order) const
